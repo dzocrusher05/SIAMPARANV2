@@ -1,0 +1,13 @@
+{
+  "name": "siamparanv2",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:css:public": "tailwindcss -i styles/tailwind.css -o public/assets/app-public.css --minify --content ./public/**/*.{html,php,js}",
+    "build:css:admin": "tailwindcss -i styles/tailwind.css -o public/assets/app-admin.css --minify --content ./admin/**/*.{html,php,js}",
+    "build:css": "npm run build:css:public && npm run build:css:admin"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.10"
+  }
+}
