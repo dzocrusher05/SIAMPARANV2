@@ -1,0 +1,13 @@
+-- File untuk dokumentasi perubahan query sarana
+-- Perubahan yang diperlukan di api/sarana.php:
+
+-- Ganti bagian query agregasi jenis menjadi:
+-- LEFT JOIN (
+--     SELECT sj.sarana_id,
+--            GROUP_CONCAT(DISTINCT j.nama_jenis ORDER BY j.nama_jenis SEPARATOR '|') AS jenis_list,
+--            GROUP_CONCAT(DISTINCT j.id ORDER BY j.nama_jenis SEPARATOR ',') AS jenis_ids,
+--            GROUP_CONCAT(DISTINCT (CASE WHEN j.icon IS NOT NULL THEN TO_BASE64(j.icon) ELSE '' END) ORDER BY j.nama_jenis SEPARATOR '|') AS icon_list
+--     FROM sarana_jenis sj
+--     JOIN jenis_sarana j ON j.id = sj.jenis_id
+--     GROUP BY sj.sarana_id
+-- ) gj ON gj.sarana_id = s.id

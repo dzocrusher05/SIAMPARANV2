@@ -28,6 +28,12 @@ $user = getUserData();
       .field input{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px}
       .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
       .pill{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:999px;padding:4px 8px;font-size:12px}
+      /* Pagination styling */
+      .pagination { display: flex; align-items: center; gap: 4px; }
+      .pagination .btn { padding: 6px 12px; min-width: 36px; text-align: center; }
+      .pagination .btn.primary { background: #111827; color: white; border-color: #111827; }
+      .pagination .btn:hover:not(.primary) { background: #f8fafc; }
+      .pagination .pill { padding: 4px 6px; }
       dialog{border:none;padding:0}
       dialog::backdrop{background:rgba(17,24,39,.45);backdrop-filter:blur(2px)}
       .modal-frame{width:min(720px,92vw);background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.18);display:flex;flex-direction:column;max-height:80vh}
@@ -103,7 +109,7 @@ $user = getUserData();
             </div>
             <div class="toolbar" style="justify-content:space-between;margin-top:8px">
               <div id="pagerInfo" class="pill"></div>
-              <div id="pagerNav" class="toolbar"></div>
+              <div id="pagerNav" class="pagination"></div>
             </div>
           </section>
 
@@ -111,6 +117,12 @@ $user = getUserData();
             <div class="toolbar" style="justify-content:space-between;margin-bottom:8px">
               <div style="font-weight:600">Jenis Sarana</div>
               <button id="btnAddJenis" class="btn primary">+ Tambah</button>
+            </div>
+            <div style="margin-bottom:12px">
+              <div class="text-sm text-abu-700">
+                <strong>Info:</strong> Icon jenis sarana harus berekstensi .png dengan ukuran 32px x 32px. 
+                Jika tidak diupload, akan menggunakan icon default dari /assets/icon.
+              </div>
             </div>
             <div style="overflow:auto">
               <table class="table">
@@ -179,10 +191,64 @@ $user = getUserData();
           }).join('');
           $('#pagerInfo').textContent = `Total ${state.total} data`;
           const nav = [];
-          for (let i=1;i<=state.totalPages;i++){
-            const active = i===state.page; nav.push(`<button class="btn ${active?'primary':''}" data-goto="${i}">${i}</button>`);
-            if (i>=10){ nav.push('<span class="pill">…</span>'); break; }
+          const maxButtons = 10; // Maksimal tombol paginasi yang ditampilkan
+          const halfButtons = Math.floor(maxButtons / 2);
+          
+          // Hitung range halaman yang akan ditampilkan
+          let startPage, endPage;
+          if (state.totalPages <= maxButtons) {
+            // Tampilkan semua halaman jika kurang dari atau sama dengan maxButtons
+            startPage = 1;
+            endPage = state.totalPages;
+          } else {
+            // Tentukan start dan end page berdasarkan halaman saat ini
+            if (state.page <= halfButtons) {
+              // Jika di awal, tampilkan dari halaman 1
+              startPage = 1;
+              endPage = maxButtons;
+            } else if (state.page + halfButtons >= state.totalPages) {
+              // Jika di akhir, tampilkan dari halaman terakhir
+              startPage = state.totalPages - maxButtons + 1;
+              endPage = state.totalPages;
+            } else {
+              // Jika di tengah, tampilkan setengah sebelum dan setengah sesudah
+              startPage = state.page - halfButtons;
+              endPage = state.page + halfButtons;
+            }
           }
+          
+          // Tambahkan tombol Previous jika tidak di halaman pertama
+          if (state.page > 1) {
+            nav.push(`<button class="btn" data-goto="${state.page - 1}">‹ Prev</button>`);
+          }
+          
+          // Tambahkan tombol First page jika startPage > 1
+          if (startPage > 1) {
+            nav.push(`<button class="btn" data-goto="1">1</button>`);
+            if (startPage > 2) {
+              nav.push(`<span class="pill">…</span>`);
+            }
+          }
+          
+          // Tambahkan tombol untuk setiap halaman dalam range
+          for (let i = startPage; i <= endPage; i++) {
+            const active = i === state.page;
+            nav.push(`<button class="btn ${active ? 'primary' : ''}" data-goto="${i}">${i}</button>`);
+          }
+          
+          // Tambahkan tombol Last page jika endPage < totalPages
+          if (endPage < state.totalPages) {
+            if (endPage < state.totalPages - 1) {
+              nav.push(`<span class="pill">…</span>`);
+            }
+            nav.push(`<button class="btn" data-goto="${state.totalPages}">${state.totalPages}</button>`);
+          }
+          
+          // Tambahkan tombol Next jika tidak di halaman terakhir
+          if (state.page < state.totalPages) {
+            nav.push(`<button class="btn" data-goto="${state.page + 1}">Next ›</button>`);
+          }
+          
           $('#pagerNav').innerHTML = nav.join('');
         } catch (err) {
           console.error('Error loading sarana:', err);
@@ -195,7 +261,7 @@ $user = getUserData();
           const rows = await jfetch(API + '/jenis.php');
           state.jenisMaster = rows;
           $('#jenisRows').innerHTML = rows.map(j=>{
-            return `<tr><td>${escapeHtml(j.nama_jenis)}</td>
+            return `<tr><td>${escapeHtml(j.nama_jenis)} ${j.has_custom_icon ? '<span class="pill">✓ Icon Khusus</span>' : '<span class="pill">Icon Default</span>'}</td>
               <td style="text-align:right">${j.count??0}</td>
               <td style="text-align:right;white-space:nowrap">
                 <button class="btn" data-view-jenis="${j.id}">Lihat</button>
@@ -474,14 +540,88 @@ $user = getUserData();
       function openEditJenis(id, nama){
         console.log('openEditJenis called with id:', id, 'nama:', nama);
         const dlg = $('#dlg');
-        $('#dlgBody').innerHTML = `<div class="field"><label>Nama Jenis</label><input id="fj" value="${(nama||'').replaceAll('"','&quot;')}"></div>`;
+        $('#dlgBody').innerHTML = `
+          <div class="field">
+            <label>Nama Jenis</label>
+            <input id="fj" value="${(nama||'').replaceAll('"','&quot;')}">
+          </div>
+          <div class="field">
+            <label>Icon Jenis Sarana (Opsional)</label>
+            <input type="file" id="fj_icon" accept=".png" class="w-full px-3 py-2 border rounded-xl">
+            <div class="text-xs text-abu-600 mt-1">
+              Format: PNG, Ukuran: 32px x 32px
+            </div>
+            <div class="text-xs text-abu-600 mt-1">
+              Catatan: Icon file statis di /assets/icon akan digunakan jika tidak ada icon khusus
+            </div>
+            ${id ? `<div class="text-xs text-abu-600 mt-1">Biarkan kosong jika tidak ingin mengganti icon</div>` : ''}
+          </div>
+        `;
         dlg.returnValue=''; dlg.showModal();
         $('#dlg').onclose = async ()=>{
           if (dlg.returnValue==='ok'){
-            const payload = id? { id, nama_jenis: $('#fj').value.trim() } : { nama_jenis: $('#fj').value.trim() };
-            console.log('Sending jenis payload:', payload);
-            await jfetch(API+'/jenis.php', { method:'POST', body: JSON.stringify(payload) });
-            await loadJenis();
+            const namaJenis = $('#fj').value.trim();
+            const iconFile = $('#fj_icon').files[0];
+            
+            if (!namaJenis) {
+              Swal.fire('Error', 'Nama jenis sarana wajib diisi', 'error');
+              return;
+            }
+            
+            // Jika ada file icon, validasi dulu
+            if (iconFile) {
+              if (iconFile.type !== 'image/png') {
+                Swal.fire('Error', 'File icon harus berekstensi .png', 'error');
+                return;
+              }
+              
+              // Validasi ukuran file (maksimal 100KB)
+              if (iconFile.size > 100000) {
+                Swal.fire('Error', 'Ukuran file icon terlalu besar (maksimal 100KB)', 'error');
+                return;
+              }
+            }
+            
+            try {
+              if (iconFile) {
+                // Upload dengan icon
+                const formData = new FormData();
+                if (id) {
+                  formData.append('id', id);
+                }
+                formData.append('nama_jenis', namaJenis);
+                formData.append('icon', iconFile);
+                
+                // Gunakan fetch langsung untuk upload file
+                const response = await fetch(API+'/jenis.php', {
+                  method: 'POST',
+                  body: formData
+                });
+                
+                if (!response.ok) {
+                  const errorData = await response.json();
+                  throw new Error(errorData.error || 'Gagal upload jenis sarana dengan icon');
+                }
+              } else {
+                // Upload tanpa icon (seperti sebelumnya)
+                const payload = id? { id, nama_jenis: namaJenis } : { nama_jenis: namaJenis };
+                console.log('Sending jenis payload:', payload);
+                await jfetch(API+'/jenis.php', { method:'POST', body: JSON.stringify(payload) });
+              }
+              
+              await loadJenis();
+              Swal.fire({
+                toast: true, 
+                position: 'top-end', 
+                showConfirmButton: false, 
+                timer: 3000, 
+                title: 'Jenis sarana berhasil disimpan', 
+                icon: 'success'
+              });
+            } catch (err) {
+              console.error('Error saving jenis:', err);
+              Swal.fire('Error', err.message, 'error');
+            }
           }
         };
       }

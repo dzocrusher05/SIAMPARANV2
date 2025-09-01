@@ -27,6 +27,18 @@ function table_exists(PDO $pdo, string $name): bool {
         return false; 
     }
 }
+
+// Helper: cek kolom icon ada
+function has_icon_column(PDO $pdo): bool {
+    try {
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `jenis_sarana` LIKE 'icon'");
+        $stmt->execute();
+        return (bool)$stmt->fetchColumn();
+    } catch (Exception $e) { 
+        error_log("Error checking icon column existence: " . $e->getMessage());
+        return false; 
+    }
+}
 $hasColumn = function(PDO $pdo, string $table, string $column): bool {
     try {
         $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$table}` LIKE ?");
