@@ -1,5 +1,5 @@
 <?php
-// api/count_wilayah.php - API untuk menghitung jumlah data wilayah
+// api/count_jenis_sarana.php - API untuk menghitung jumlah data jenis sarana
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/_common.php';
 
@@ -26,52 +26,38 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $rawData = file_get_contents('php://input');
-    error_log("count_wilayah.php request received. Raw data: " . $rawData);
+    error_log("count_jenis_sarana.php request received. Raw data: " . $rawData);
     
     if (empty($rawData)) {
         respond(['error' => 'Data JSON tidak ditemukan dalam request body'], 400);
     }
     
     $data = json_decode($rawData, true);
-    error_log("count_wilayah.php parsed data: " . json_encode($data));
+    error_log("count_jenis_sarana.php parsed data: " . json_encode($data));
     
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        respond(['error' => 'Format JSON tidak valid: ' . json_last_error_msg()], 400);
-    }
-    
-    $type = $data['type'] ?? '';
-    $name = $data['name'] ?? '';
+    $jenisId = $data['jenis_id'] ?? '';
     
     // Validasi input
-    if (empty($type)) {
-        respond(['error' => 'Parameter "type" wajib diisi'], 400);
-    }
-    
-    if (empty($name)) {
-        respond(['error' => 'Parameter "name" wajib diisi'], 400);
-    }
-    
-    if (!in_array($type, ['kabupaten', 'kecamatan', 'kelurahan'])) {
-        respond(['error' => 'Jenis wilayah tidak valid. Gunakan: kabupaten, kecamatan, atau kelurahan'], 400);
+    if (empty($jenisId)) {
+        respond(['error' => 'Parameter "jenis_id" wajib diisi'], 400);
     }
     
     // Hitung jumlah data
-    $sql = "SELECT COUNT(*) FROM data_sarana WHERE `$type` = ?";
+    $sql = "SELECT COUNT(*) FROM sarana_jenis WHERE jenis_id = ?";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$name]);
+    $stmt->execute([$jenisId]);
     $count = $stmt->fetchColumn();
-    error_log("count_wilayah.php query result: " . $count);
+    error_log("count_jenis_sarana.php query result: " . $count);
     
     respond([
-        'type' => $type,
-        'name' => $name,
+        'jenis_id' => $jenisId,
         'count' => (int)$count
     ]);
     
 } catch (PDOException $e) {
-    error_log("Database error in count_wilayah.php: " . $e->getMessage());
+    error_log("Database error in count_jenis_sarana.php: " . $e->getMessage());
     respond(['error' => 'Terjadi kesalahan database', 'detail' => $e->getMessage()], 500);
 } catch (Exception $e) {
-    error_log("Error in count_wilayah.php: " . $e->getMessage());
+    error_log("Error in count_jenis_sarana.php: " . $e->getMessage());
     respond(['error' => 'Terjadi kesalahan server', 'detail' => $e->getMessage()], 500);
 }

@@ -1,0 +1,13 @@
+# Perintah untuk menambahkan dan commit file baru
+git add admin/jenis_sarana_massal.php
+git add api/count_jenis_sarana.php
+git add api/jenis_sarana_massal.php
+git add api/import_jenis_sarana.php
+git add assets/template_jenis_sarana.csv
+git add admin/index.php
+
+# Commit perubahan
+git commit -m "Menambahkan fitur ubah jenis sarana massal dan memperbaiki fitur manajemen wilayah"
+
+# Push ke GitHub (sesuaikan dengan remote dan branch Anda)
+git push origin main

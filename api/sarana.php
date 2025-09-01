@@ -288,6 +288,9 @@ if ($method === 'POST') {
         // Logging untuk debugging
         error_log("Updating sarana with ID: " . $idUpdate);
         error_log("Data received: " . json_encode($data));
+        error_log("Jenis IDs in data: " . (isset($data['jenis_ids']) ? json_encode($data['jenis_ids']) : "not set"));
+        error_log("Is jenis_ids array: " . (is_array($data['jenis_ids'] ?? null) ? "yes" : "no"));
+        error_log("Jenis tables available: " . ($jenisAvail ? "yes" : "no"));
         
         $pdo->beginTransaction();
         try {
@@ -308,15 +311,28 @@ if ($method === 'POST') {
                 error_log("Update result: " . ($result ? "success" : "failed"));
             }
             // Update relasi jenis jika diberikan
-            if (isset($data['jenis_ids']) && is_array($data['jenis_ids']) && table_exists($pdo,'sarana_jenis')) {
+            if (isset($data['jenis_ids']) && is_array($data['jenis_ids']) && $jenisAvail) {
                 $jenisIds = array_map('intval', $data['jenis_ids']);
-                $pdo->prepare("DELETE FROM sarana_jenis WHERE sarana_id=?")->execute([$idUpdate]);
+                error_log("Processing jenis IDs: " . json_encode($jenisIds));
+                error_log("Jenis IDs type: " . gettype($data['jenis_ids']));
+                
+                // Delete existing relations
+                $delStmt = $pdo->prepare("DELETE FROM sarana_jenis WHERE sarana_id=?");
+                $delResult = $delStmt->execute([$idUpdate]);
+                error_log("Delete existing jenis relations result: " . ($delResult ? "success" : "failed"));
+                
                 if (!empty($jenisIds)) {
                     $ins = $pdo->prepare("INSERT IGNORE INTO sarana_jenis (sarana_id, jenis_id) VALUES (?, ?)");
                     foreach ($jenisIds as $jid) { 
-                        $ins->execute([$idUpdate, $jid]); 
+                        $insResult = $ins->execute([$idUpdate, $jid]); 
+                        error_log("Inserting jenis relation for sarana_id=$idUpdate, jenis_id=$jid: " . ($insResult ? "success" : "failed"));
                     }
                 }
+                error_log("Jenis IDs processed: " . json_encode($jenisIds));
+            } else {
+                error_log("Skipping jenis processing. isset jenis_ids: " . (isset($data['jenis_ids']) ? "yes" : "no") . 
+                         ", is_array: " . (is_array($data['jenis_ids'] ?? null) ? "yes" : "no") . 
+                         ", jenisAvail: " . ($jenisAvail ? "yes" : "no"));
             }
             $pdo->commit();
             respond(['message' => 'Sarana diperbarui', 'id' => $idUpdate]);
@@ -377,10 +393,29 @@ if ($method === 'PUT') {
             $pdo->prepare($sql)->execute($p);
         }
 
-        if (isset($data['jenis_ids']) && is_array($data['jenis_ids'])) {
-            $pdo->prepare("DELETE FROM sarana_jenis WHERE sarana_id=?")->execute([$id]);
-            $ins = $pdo->prepare("INSERT IGNORE INTO sarana_jenis (sarana_id, jenis_id) VALUES (?, ?)");
-            foreach ($data['jenis_ids'] as $jid) $ins->execute([$id, intval($jid)]);
+        // Update relasi jenis jika diberikan
+        if (isset($data['jenis_ids']) && is_array($data['jenis_ids']) && $jenisAvail) {
+            $jenisIds = array_map('intval', $data['jenis_ids']);
+            error_log("PUT method - Processing jenis IDs: " . json_encode($jenisIds));
+            error_log("PUT method - Jenis IDs type: " . gettype($data['jenis_ids']));
+            
+            // Delete existing relations
+            $delStmt = $pdo->prepare("DELETE FROM sarana_jenis WHERE sarana_id=?");
+            $delResult = $delStmt->execute([$id]);
+            error_log("PUT method - Delete existing jenis relations result: " . ($delResult ? "success" : "failed"));
+            
+            if (!empty($jenisIds)) {
+                $ins = $pdo->prepare("INSERT IGNORE INTO sarana_jenis (sarana_id, jenis_id) VALUES (?, ?)");
+                foreach ($jenisIds as $jid) { 
+                    $insResult = $ins->execute([$id, $jid]); 
+                    error_log("PUT method - Inserting jenis relation for sarana_id=$id, jenis_id=$jid: " . ($insResult ? "success" : "failed"));
+                }
+            }
+            error_log("PUT method - Jenis IDs processed: " . json_encode($jenisIds));
+        } else {
+            error_log("PUT method - Skipping jenis processing. isset jenis_ids: " . (isset($data['jenis_ids']) ? "yes" : "no") . 
+                     ", is_array: " . (is_array($data['jenis_ids'] ?? null) ? "yes" : "no") . 
+                     ", jenisAvail: " . ($jenisAvail ? "yes" : "no"));
         }
 
         $pdo->commit();

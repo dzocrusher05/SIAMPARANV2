@@ -1,4 +1,4 @@
-<?php // admin/wilayah.php ?>
+<?php // admin/jenis_sarana_massal.php ?>
 <?php
 require_once __DIR__ . '/../config/auth.php';
 requireLogin(); // Memerlukan login untuk mengakses halaman ini
@@ -9,57 +9,51 @@ $userData = getUserData();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Wilayah - Admin</title>
+    <title>Ubah Jenis Sarana Massal - Admin</title>
     <link rel="icon" href="../assets/favicon.svg">
     <link rel="stylesheet" href="../public/assets/app-admin.css" />
 </head>
 <body class="bg-tulang text-abu-900">
     <div class="min-h-screen max-w-4xl mx-auto p-6">
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-xl font-semibold">Manajemen Wilayah</h1>
+            <h1 class="text-xl font-semibold">Ubah Jenis Sarana Massal</h1>
             <a href="./index.php" class="underline text-sm">← Kembali ke Dashboard</a>
         </div>
 
         <div class="bg-white rounded-2xl border border-abu-100 shadow-soft p-5 space-y-6">
             <div class="border-b pb-4">
-                <h2 class="text-lg font-medium mb-2">Ubah Nama Wilayah Secara Massal</h2>
+                <h2 class="text-lg font-medium mb-2">Ubah Jenis Sarana Secara Massal</h2>
                 <p class="text-sm text-abu-700">
-                    Gunakan fitur ini untuk mengganti nama wilayah yang tidak sesuai secara sekaligus.
-                    Contoh: mengubah "luwu timur" menjadi "Kab. Luwu Timur".
+                    Gunakan fitur ini untuk mengganti jenis sarana yang salah secara sekaligus.
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="md:col-span-3">
-                    <label class="block text-sm mb-1">Wilayah yang akan diubah</label>
-                    <select id="jenis_wilayah" class="w-full px-3 py-2 border rounded-xl">
-                        <option value="kabupaten">Kabupaten</option>
-                        <option value="kecamatan">Kecamatan</option>
-                        <option value="kelurahan">Kelurahan</option>
-                    </select>
-                </div>
-                
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm mb-1">Nama Saat Ini</label>
-                    <input type="text" id="nama_lama" class="w-full px-3 py-2 border rounded-xl" placeholder="Contoh: luwu timur">
+                    <label class="block text-sm mb-1">Jenis Sarana Saat Ini</label>
+                    <select id="jenis_lama" class="w-full px-3 py-2 border rounded-xl">
+                        <option value="">Pilih jenis sarana...</option>
+                    </select>
                     <div id="count_lama" class="text-xs text-abu-600 mt-1"></div>
                 </div>
                 
                 <div>
-                    <label class="block text-sm mb-1">Nama Baru</label>
-                    <input type="text" id="nama_baru" class="w-full px-3 py-2 border rounded-xl" placeholder="Contoh: Kab. Luwu Timur">
+                    <label class="block text-sm mb-1">Jenis Sarana Baru</label>
+                    <select id="jenis_baru" class="w-full px-3 py-2 border rounded-xl">
+                        <option value="">Pilih jenis sarana...</option>
+                    </select>
                 </div>
                 
-                <div class="flex items-end">
-                    <button id="btn_ubah" class="bg-abu-900 text-white px-4 py-2 rounded-xl hover:bg-abu-700 w-full">Ubah</button>
+                <div class="md:col-span-2 flex justify-end">
+                    <button id="btn_ubah" class="bg-abu-900 text-white px-4 py-2 rounded-xl hover:bg-abu-700" disabled>Ubah Jenis Sarana</button>
                 </div>
             </div>
 
             <div class="border-t pt-4">
-                <h3 class="font-medium mb-2">Import Perubahan Wilayah dari CSV</h3>
+                <h3 class="font-medium mb-2">Import Perubahan Jenis Sarana dari CSV</h3>
                 <p class="text-sm text-abu-700 mb-3">
-                    Unggah file CSV dengan format: jenis_wilayah,nama_lama,nama_baru
-                    <a href="../assets/template_wilayah.csv" class="underline" download>Unduh template CSV</a>
+                    Unggah file CSV dengan format: jenis_lama,jenis_baru
+                    <a href="../assets/template_jenis_sarana.csv" class="underline" download>Unduh template CSV</a>
                 </p>
                 <form id="import_form" class="space-y-3">
                     <div>
@@ -76,28 +70,8 @@ $userData = getUserData();
             <div id="result" class="text-sm"></div>
 
             <div class="border-t pt-4">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-medium">Daftar Wilayah Saat Ini</h3>
-                    <div class="flex gap-2">
-                        <a href="../api/export_wilayah.php?type=kabupaten" class="text-xs underline">Ekspor Kabupaten</a>
-                        <a href="../api/export_wilayah.php?type=kecamatan" class="text-xs underline">Ekspor Kecamatan</a>
-                        <a href="../api/export_wilayah.php?type=kelurahan" class="text-xs underline">Ekspor Kelurahan</a>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <h4 class="font-medium text-sm mb-2">Kabupaten</h4>
-                        <div id="list_kabupaten" class="text-sm max-h-40 overflow-auto nice-scroll bg-abu-50 p-2 rounded"></div>
-                    </div>
-                    <div>
-                        <h4 class="font-medium text-sm mb-2">Kecamatan</h4>
-                        <div id="list_kecamatan" class="text-sm max-h-40 overflow-auto nice-scroll bg-abu-50 p-2 rounded"></div>
-                    </div>
-                    <div>
-                        <h4 class="font-medium text-sm mb-2">Kelurahan</h4>
-                        <div id="list_kelurahan" class="text-sm max-h-40 overflow-auto nice-scroll bg-abu-50 p-2 rounded"></div>
-                    </div>
-                </div>
+                <h3 class="font-medium mb-2">Daftar Jenis Sarana</h3>
+                <div id="list_jenis" class="text-sm max-h-60 overflow-auto nice-scroll bg-abu-50 p-2 rounded"></div>
             </div>
         </div>
     </div>
@@ -105,35 +79,49 @@ $userData = getUserData();
     <script>
         const API_BASE = "/api";
         
-        // Load daftar wilayah saat halaman dimuat
+        // Load daftar jenis sarana saat halaman dimuat
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadWilayah();
+            await loadJenisSarana();
             
-            // Tambahkan event listener untuk field nama_lama
-            document.getElementById('nama_lama').addEventListener('input', debounce(async function() {
-                const nama = document.getElementById('nama_lama').value.trim();
-                const jenis = document.getElementById('jenis_wilayah').value;
+            // Tambahkan event listener untuk field jenis_lama
+            document.getElementById('jenis_lama').addEventListener('change', async function() {
+                const jenisId = this.value;
                 const countDiv = document.getElementById('count_lama');
+                const btnUbah = document.getElementById('btn_ubah');
                 
-                if (nama) {
+                if (jenisId) {
                     try {
-                        const res = await fetchJSON(`${API_BASE}/count_wilayah.php`, {
+                        const res = await fetchJSON(`${API_BASE}/count_jenis_sarana.php`, {
                             method: 'POST',
                             body: JSON.stringify({
-                                type: jenis,
-                                name: nama
+                                jenis_id: jenisId
                             })
                         });
                         countDiv.textContent = `${res.count} data akan diubah`;
                         countDiv.className = "text-xs text-abu-600 mt-1";
+                        
+                        // Enable tombol ubah jika kedua jenis sudah dipilih
+                        const jenisBaru = document.getElementById('jenis_baru').value;
+                        btnUbah.disabled = !jenisBaru || jenisBaru === jenisId;
                     } catch (err) {
                         countDiv.textContent = "Gagal menghitung data";
                         countDiv.className = "text-xs text-red-600 mt-1";
                     }
                 } else {
                     countDiv.textContent = "";
+                    btnUbah.disabled = true;
                 }
-            }, 300));
+            });
+            
+            // Tambahkan event listener untuk field jenis_baru
+            document.getElementById('jenis_baru').addEventListener('change', function() {
+                const jenisLama = document.getElementById('jenis_lama').value;
+                const jenisBaru = this.value;
+                const btnUbah = document.getElementById('btn_ubah');
+                
+                // Enable tombol ubah jika kedua jenis sudah dipilih dan berbeda
+                btnUbah.disabled = !jenisLama || !jenisBaru || jenisLama === jenisBaru;
+            });
             
             // Tambahkan event listener untuk form import
             document.getElementById('import_form').addEventListener('submit', async function(e) {
@@ -144,9 +132,9 @@ $userData = getUserData();
                 console.log('Import form submitted');
                 
                 try {
-                    resultDiv.innerHTML = '<div class="p-3 rounded-xl border bg-abu-50">Mengimport perubahan wilayah...</div>';
+                    resultDiv.innerHTML = '<div class="p-3 rounded-xl border bg-abu-50">Mengimport perubahan jenis sarana...</div>';
                     
-                    const response = await fetch(`${API_BASE}/import_wilayah.php`, {
+                    const response = await fetch(`${API_BASE}/import_jenis_sarana.php`, {
                         method: 'POST',
                         body: formData
                     });
@@ -168,7 +156,7 @@ $userData = getUserData();
                     
                     resultDiv.innerHTML = `
                         <div class="p-3 rounded-xl border bg-green-50 text-green-700">
-                            <div>Berhasil mengimport perubahan wilayah!</div>
+                            <div>Berhasil mengimport perubahan jenis sarana!</div>
                             <div>Total data diubah: ${data.total_updated}</div>
                             ${data.errors && data.errors.length > 0 ? 
                                 `<div class="mt-2 text-red-700">Error: ${data.errors.join(', ')}</div>` : ''}
@@ -178,8 +166,8 @@ $userData = getUserData();
                     // Reset form
                     this.reset();
                     
-                    // Reload daftar wilayah
-                    await loadWilayah();
+                    // Reload daftar jenis sarana
+                    await loadJenisSarana();
                 } catch (err) {
                     console.error('Error in import form:', err);
                     resultDiv.innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Gagal mengimport: ${err.message}</div>`;
@@ -187,20 +175,36 @@ $userData = getUserData();
             });
         });
         
-        async function loadWilayah() {
+        async function loadJenisSarana() {
             try {
-                const [kabupaten, kecamatan, kelurahan] = await Promise.all([
-                    fetchJSON(`${API_BASE}/wilayah.php?type=kabupaten`),
-                    fetchJSON(`${API_BASE}/wilayah.php?type=kecamatan`),
-                    fetchJSON(`${API_BASE}/wilayah.php?type=kelurahan`)
-                ]);
+                const jenis = await fetchJSON(`${API_BASE}/jenis.php`);
                 
-                document.getElementById('list_kabupaten').innerHTML = kabupaten.map(k => `<div class="py-1">${k}</div>`).join('');
-                document.getElementById('list_kecamatan').innerHTML = kecamatan.map(k => `<div class="py-1">${k}</div>`).join('');
-                document.getElementById('list_kelurahan').innerHTML = kelurahan.map(k => `<div class="py-1">${k}</div>`).join('');
+                // Isi dropdown jenis_lama
+                const jenisLamaSelect = document.getElementById('jenis_lama');
+                jenisLamaSelect.innerHTML = '<option value="">Pilih jenis sarana...</option>';
+                jenis.forEach(j => {
+                    const option = document.createElement('option');
+                    option.value = j.id;
+                    option.textContent = `${j.nama_jenis} (${j.count})`;
+                    jenisLamaSelect.appendChild(option);
+                });
+                
+                // Isi dropdown jenis_baru
+                const jenisBaruSelect = document.getElementById('jenis_baru');
+                jenisBaruSelect.innerHTML = '<option value="">Pilih jenis sarana...</option>';
+                jenis.forEach(j => {
+                    const option = document.createElement('option');
+                    option.value = j.id;
+                    option.textContent = j.nama_jenis;
+                    jenisBaruSelect.appendChild(option);
+                });
+                
+                // Isi daftar jenis
+                const listDiv = document.getElementById('list_jenis');
+                listDiv.innerHTML = jenis.map(j => `<div class="py-1">${j.nama_jenis} (${j.count})</div>`).join('');
             } catch (err) {
-                console.error('Error loading wilayah:', err);
-                document.getElementById('result').innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Gagal memuat daftar wilayah: ${err.message}</div>`;
+                console.error('Error loading jenis sarana:', err);
+                document.getElementById('result').innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Gagal memuat daftar jenis sarana: ${err.message}</div>`;
             }
         }
         
@@ -243,44 +247,30 @@ $userData = getUserData();
             });
         }
         
-        // Debounce function
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-        
         document.getElementById('btn_ubah').addEventListener('click', async () => {
-            const jenis = document.getElementById('jenis_wilayah').value;
-            const namaLama = document.getElementById('nama_lama').value.trim();
-            const namaBaru = document.getElementById('nama_baru').value.trim();
+            const jenisLama = document.getElementById('jenis_lama').value;
+            const jenisBaru = document.getElementById('jenis_baru').value;
             const result = document.getElementById('result');
             
-            console.log('Ubah wilayah button clicked. Jenis:', jenis, 'Nama lama:', namaLama, 'Nama baru:', namaBaru);
+            console.log('Ubah jenis sarana button clicked. Jenis lama:', jenisLama, 'Jenis baru:', jenisBaru);
             
-            if (!namaLama || !namaBaru) {
-                result.innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Harap isi nama lama dan nama baru.</div>`;
+            if (!jenisLama || !jenisBaru) {
+                result.innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Harap pilih jenis lama dan jenis baru.</div>`;
                 return;
             }
             
-            if (namaLama === namaBaru) {
-                result.innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Nama lama dan nama baru tidak boleh sama.</div>`;
+            if (jenisLama === jenisBaru) {
+                result.innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Jenis lama dan jenis baru tidak boleh sama.</div>`;
                 return;
             }
             
             try {
-                result.innerHTML = `<div class="p-3 rounded-xl border bg-abu-50">Mengubah nama wilayah...</div>`;
+                result.innerHTML = `<div class="p-3 rounded-xl border bg-abu-50">Mengubah jenis sarana...</div>`;
                 
                 // Gunakan XMLHttpRequest dengan form data untuk menghindari masalah method PUT
                 const res = await new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
-                    xhr.open('POST', `${API_BASE}/wilayah.php`, true);
+                    xhr.open('POST', `${API_BASE}/jenis_sarana_massal.php`, true);
                     xhr.setRequestHeader('Content-Type', 'application/json');
                     
                     xhr.onload = function() {
@@ -307,27 +297,26 @@ $userData = getUserData();
                     
                     xhr.send(JSON.stringify({
                         _method: 'PUT',
-                        type: jenis,
-                        old_name: namaLama,
-                        new_name: namaBaru
+                        old_jenis_id: jenisLama,
+                        new_jenis_id: jenisBaru
                     }));
                 });
                 
                 result.innerHTML = `<div class="p-3 rounded-xl border bg-green-50 text-green-700">
-                    Berhasil mengubah ${res.updated} data dari "${namaLama}" menjadi "${namaBaru}".
-                    ${res.count_before_update ? ` (${res.count_before_update} data diubah)` : ''}
+                    Berhasil mengubah ${res.updated} data dari jenis lama ke jenis baru.
                 </div>`;
                 
                 // Reset form
-                document.getElementById('nama_lama').value = '';
-                document.getElementById('nama_baru').value = '';
+                document.getElementById('jenis_lama').value = '';
+                document.getElementById('jenis_baru').value = '';
                 document.getElementById('count_lama').textContent = '';
+                document.getElementById('btn_ubah').disabled = true;
                 
-                // Reload daftar wilayah
-                await loadWilayah();
+                // Reload daftar jenis sarana
+                await loadJenisSarana();
             } catch (err) {
-                console.error('Error in ubah wilayah:', err);
-                result.innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Gagal mengubah wilayah: ${err.message}</div>`;
+                console.error('Error in ubah jenis sarana:', err);
+                result.innerHTML = `<div class="p-3 rounded-xl border bg-red-50 text-red-700">Gagal mengubah jenis sarana: ${err.message}</div>`;
             }
         });
     </script>

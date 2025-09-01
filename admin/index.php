@@ -75,6 +75,7 @@ $user = getUserData();
             <a class="btn" href="../public/index.php" target="_blank">🗺️ Halaman Peta</a>
             <a class="btn" href="./import.php">⬆️ Import Sarana</a>
             <a class="btn" href="./wilayah.php">🌍 Manajemen Wilayah</a>
+            <a class="btn" href="./jenis_sarana_massal.php">🔄 Ubah Jenis Sarana Massal</a>
             <a class="btn" href="./change_password.php">🔑 Ganti Password</a>
             <a class="btn" href="./logout.php">🚪 Logout</a>
           </div>
@@ -347,6 +348,9 @@ $user = getUserData();
                `).join('')}</div>
              </div>`
           : '';
+        console.log('Jenis HTML generated:', jenisHtml);
+        console.log('Jenis master count:', state.jenisMaster.length);
+        console.log('Selected jenis:', selJenis);
 
         body.innerHTML = `<div class="modal-form grid-2">
           <div class="field" style="grid-column:1/3"><label>Nama Sarana</label><input id="f_nama" required></div>
@@ -360,6 +364,16 @@ $user = getUserData();
         $('#dlgTitle').textContent = id? 'Ubah Data Sarana' : 'Tambah Data Sarana';
         $('#dlgBody').innerHTML = '';
         $('#dlgBody').appendChild(body);
+        // Log jumlah checkbox jenis yang ditemukan
+        setTimeout(() => {
+          const jenisCheckboxes = $('.f_jenis');
+          console.log('Jenis checkboxes in form:', jenisCheckboxes.length);
+          if (jenisCheckboxes.length > 0) {
+            const checked = jenisCheckboxes.filter(x => x.checked);
+            console.log('Checked jenis checkboxes:', checked.length);
+            console.log('Checked jenis values:', checked.map(x => x.value));
+          }
+        }, 100);
         // aktifkan autosuggest/filter jenis
         const jenisSearch = $('#f_jenis_search');
         if (jenisSearch){
@@ -417,13 +431,35 @@ $user = getUserData();
                 kelurahan: $('#f_kel').value.trim()
               };
               // collect jenis_ids if any
+              console.log('Collecting jenis IDs...');
               const jboxes = $('.f_jenis');
-              if (jboxes.length){
-                const ids = jboxes.filter(x=>x.checked).map(x=>parseInt(x.value,10)).filter(Boolean);
+              console.log('Jenis checkboxes found:', jboxes ? jboxes.length : 'undefined');
+              if (jboxes && jboxes.length){
+                console.log('Processing checkboxes...');
+                const checkedBoxes = jboxes.filter(x=>x.checked);
+                console.log('Checked checkboxes count:', checkedBoxes.length);
+                const ids = checkedBoxes.map(x=>parseInt(x.value,10)).filter(Boolean);
+                console.log('Processed IDs:', ids);
                 payload.jenis_ids = ids;
+                console.log('Jenis IDs collected:', ids);
+              } else {
+                console.log('No jenis checkboxes found');
+                // Coba cari dengan selector alternatif
+                const altBoxes = document.querySelectorAll('.f_jenis');
+                console.log('Alternative search found checkboxes:', altBoxes.length);
+                if (altBoxes.length > 0) {
+                  const checkedAlt = Array.from(altBoxes).filter(x=>x.checked);
+                  const altIds = checkedAlt.map(x=>parseInt(x.value,10)).filter(Boolean);
+                  console.log('Alternative processed IDs:', altIds);
+                  if (altIds.length > 0) {
+                    payload.jenis_ids = altIds;
+                    console.log('Using alternative jenis IDs:', altIds);
+                  }
+                }
               }
               try {
                 console.log('Sending payload:', payload);
+                console.log('Jenis IDs in payload:', payload.jenis_ids);
                 await jfetch(API+'/sarana.php', { method:'POST', body: JSON.stringify(payload) });
                 await loadSarana();
                 Swal.fire({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, title: 'Data berhasil disimpan', icon: 'success'});

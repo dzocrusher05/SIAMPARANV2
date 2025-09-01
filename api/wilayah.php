@@ -5,8 +5,6 @@ require_once __DIR__ . '/_common.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-$method = $_SERVER['REQUEST_METHOD'];
-
 // CORS dev-friendly
 if (isset($_SERVER['HTTP_ORIGIN'])) {
     header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
@@ -23,7 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 try {
-    if ($method === 'GET') {
+    // Support both GET and POST for compatibility
+    $method = $_SERVER['REQUEST_METHOD'];
+    
+    if ($method === 'GET' || ($method === 'POST' && !isset($_POST['_method']) && !isset(json_decode(file_get_contents('php://input'), true)['_method']))) {
         // GET: Mendapatkan daftar wilayah unik
         $type = $_GET['type'] ?? 'kabupaten';
         
@@ -40,19 +41,21 @@ try {
         respond($results);
     }
     
-    if ($method === 'PUT') {
+    // Handle both PUT and POST with _method parameter for update
+    if ($method === 'PUT' || ($method === 'POST' && (
+        (isset($_POST['_method']) && $_POST['_method'] === 'PUT') || 
+        (isset(json_decode(file_get_contents('php://input'), true)['_method']) && json_decode(file_get_contents('php://input'), true)['_method'] === 'PUT')
+    ))) {
         // PUT: Mengubah nama wilayah secara massal
         $rawData = file_get_contents('php://input');
+        error_log("wilayah.php PUT/POST request received. Raw data: " . $rawData);
         
         if (empty($rawData)) {
             respond(['error' => 'Data JSON tidak ditemukan dalam request body'], 400);
         }
         
         $data = json_decode($rawData, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            respond(['error' => 'Format JSON tidak valid: ' . json_last_error_msg()], 400);
-        }
+        error_log("wilayah.php PUT/POST request parsed data: " . json_encode($data));
         
         $type = $data['type'] ?? '';
         $oldName = $data['old_name'] ?? '';
@@ -84,6 +87,7 @@ try {
         $countStmt = $pdo->prepare($countSql);
         $countStmt->execute([$oldName]);
         $count = $countStmt->fetchColumn();
+        error_log("wilayah.php PUT/POST count query result: " . $count);
         
         if ($count == 0) {
             respond([
@@ -100,6 +104,7 @@ try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$newName, $oldName]);
         $updated = $stmt->rowCount();
+        error_log("wilayah.php PUT/POST update query result - rows updated: " . $updated);
         
         respond([
             'message' => 'Berhasil mengubah nama wilayah',
