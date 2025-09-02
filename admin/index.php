@@ -540,6 +540,13 @@ $user = getUserData();
       function openEditJenis(id, nama){
         console.log('openEditJenis called with id:', id, 'nama:', nama);
         const dlg = $('#dlg');
+        // Cari data jenis untuk preview icon
+        let jenisData = null;
+        try { if (Array.isArray(state.jenisMaster)) jenisData = state.jenisMaster.find(j=>parseInt(j.id,10)===parseInt(id||0,10)); } catch(_){ }
+        const hasCustom = !!(jenisData && jenisData.has_custom_icon);
+        const customSrc = jenisData && jenisData.icon_base64 ? `data:image/png;base64,${jenisData.icon_base64}` : '';
+        const defaultSrc = `../assets/icon/${String(nama||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}.png`;
+        const previewSrc = hasCustom ? customSrc : defaultSrc;
         $('#dlgBody').innerHTML = `
           <div class="field">
             <label>Nama Jenis</label>
@@ -547,14 +554,15 @@ $user = getUserData();
           </div>
           <div class="field">
             <label>Icon Jenis Sarana (Opsional)</label>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+              <img id="fj_preview" src="${previewSrc}" alt="preview" width="32" height="32" style="border:1px solid #e5e7eb;border-radius:6px;background:#fff" />
+              ${hasCustom ? '<span class="pill">Icon Khusus</span>' : '<span class="pill">Icon Default</span>'}
+            </div>
             <input type="file" id="fj_icon" accept=".png" class="w-full px-3 py-2 border rounded-xl">
-            <div class="text-xs text-abu-600 mt-1">
-              Format: PNG, Ukuran: 32px x 32px
-            </div>
-            <div class="text-xs text-abu-600 mt-1">
-              Catatan: Icon file statis di /assets/icon akan digunakan jika tidak ada icon khusus
-            </div>
-            ${id ? `<div class="text-xs text-abu-600 mt-1">Biarkan kosong jika tidak ingin mengganti icon</div>` : ''}
+            <div class="text-xs text-abu-600 mt-1">Format: PNG, Ukuran: 32px x 32px</div>
+            <div class="text-xs text-abu-600 mt-1">Catatan: Icon file statis di /assets/icon akan digunakan jika tidak ada icon khusus</div>
+            ${id ? `<div class=\"text-xs text-abu-600 mt-1\">Biarkan kosong jika tidak ingin mengganti icon</div>` : ''}
+            ${id ? `<label style=\"display:flex;align-items:center;gap:8px;margin-top:8px\"><input type=\"checkbox\" id=\"fj_remove_icon\"> Hapus icon khusus</label>` : ''}
           </div>
         `;
         dlg.returnValue=''; dlg.showModal();
@@ -605,6 +613,9 @@ $user = getUserData();
               } else {
                 // Upload tanpa icon (seperti sebelumnya)
                 const payload = id? { id, nama_jenis: namaJenis } : { nama_jenis: namaJenis };
+                // Jika user centang hapus icon khusus
+                const chk = document.getElementById('fj_remove_icon');
+                if (chk && chk.checked) payload.remove_icon = true;
                 console.log('Sending jenis payload:', payload);
                 await jfetch(API+'/jenis.php', { method:'POST', body: JSON.stringify(payload) });
               }

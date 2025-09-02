@@ -1,5 +1,29 @@
 // app_map.js — dengan filter dan tracking pengguna
 (function(){
+  // Shared map reference so GPS handlers can access it
+  let map = null;
+  // Default map view constants and flags
+  const DEFAULT_CENTER = [-2.99, 120.2];
+  const DEFAULT_ZOOM = 8;
+  const NAME_ZOOM = 19; // zoom in dekat agar hanya 1 sarana terlihat
+  // gunakan flag global agar bisa diubah dari handler tombol Apply
+  window.justAppliedFilter = false; // digunakan agar auto-zoom tidak mengunci interaksi
+  let didCenterOnLocate = false; // center once on first geolocation fix
+  // Peta nama jenis -> URL icon (data URL atau path aset)
+  const jenisIconMap = {};
+  function slugify(s){
+    return String(s||'')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/^-+|-+$/g,'');
+  }
+  function getJenisIcon(name){
+    const key = String(name||'Lainnya');
+    if (jenisIconMap[key]) return jenisIconMap[key];
+    // fallback ke aset default berdasarkan slug nama
+    return `../assets/icon/${slugify(key)}.png`;
+  }
   const API = window.API_BASE || '../api';
   const UI = {
     btnFilter: null, btnLocate: null, btnFollow: null,
@@ -18,24 +42,13 @@
 
   // Fungsi untuk membuat icon marker
   function makeIcon(kind, nameLabel){
-    const bg = '#e5e7eb';
-    const iconHtml = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2c-3.86 0-7 3.14-7 7 0 5.25 7 13 7 13s7-7.75 7-13c0-3.86-3.14-7-7-7z" fill="${bg}" stroke="#11182722"/>
-      <circle cx="12" cy="9" r="4.2" fill="#ffffff"/>
-    </svg>`;
-
-    const html = `<div style="text-align: center;">
-                    ${iconHtml}
+    const iconUrl = (typeof getJenisIcon === 'function') ? getJenisIcon(kind) : '';
+    const iconImg = iconUrl ? `<img src="${iconUrl}" alt="${escapeHtml(kind)}" width="32" height="32" style="display:block;margin:0 auto;"/>` : '';
+    const html = `<div style="text-align:center;">
+                    ${iconImg}
                     <div style="font-size: 12px; color: #000; white-space: nowrap; margin-top: 2px; background: rgba(255, 255, 255, 0.7); padding: 2px 5px; border-radius: 3px; box-shadow: 0 0 2px #fff;">${escapeHtml(nameLabel)}</div>
                   </div>`;
-
-    return L.divIcon({
-      className: 'custom-div-icon',
-      html: html,
-      iconSize: [80, 40],
-      iconAnchor: [40, 40],
-      popupAnchor: [0, -40]
-    });
+    return L.divIcon({ className: 'custom-div-icon', html, iconSize: [80, 46], iconAnchor: [40, 40], popupAnchor: [0, -40] });
   }
 
   // Fungsi untuk memuat data sarana
@@ -68,6 +81,25 @@
     }
   }
 
+  // Autosuggest: fetch nama sarana berdasarkan kueri teks (tanpa bbox)
+  async function fetchSuggestNames(term, limit=10){
+    try{
+      if (!term || term.trim().length < 2) return [];
+      const qs = new URLSearchParams();
+      qs.set('q', term.trim());
+      qs.set('limit', String(limit));
+      const url = `${API}/sarana.php?${qs.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!Array.isArray(data)) return [];
+      return data;
+    }catch(err){
+      console.error('Error fetching name suggestions:', err);
+      return [];
+    }
+  }
+
   // Fungsi untuk memuat data wilayah
   async function fetchAreas(type, parent){
     try {
@@ -97,12 +129,8 @@
   // Inisialisasi peta
   function initMap() {
     console.log('Initializing map with filters and tracking...');
-    const DEFAULT_CENTER = [-2.99, 120.2];
-    const DEFAULT_ZOOM = 8;
-    const NAME_ZOOM = 19; // zoom in dekat agar hanya 1 sarana terlihat
-    let justAppliedFilter = false; // digunakan agar auto-zoom tidak mengunci interaksi
     
-    const map = L.map('map').setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    map = L.map('map').setView(DEFAULT_CENTER, DEFAULT_ZOOM);
     console.log('Map initialized');
     
     // Base layer dengan graceful fallback providers jika primary gagal
@@ -177,7 +205,7 @@
         }
         console.log('Added markers:', added.length);
         // Ketika filter nama digunakan, hanya lakukan auto-zoom sekali setelah filter diterapkan.
-        if (filter.q && justAppliedFilter) {
+        if (filter.q && window.justAppliedFilter) {
           if (added.length === 1) {
             const ll = added[0].getLatLng();
             map.setView(ll, NAME_ZOOM);
@@ -187,7 +215,7 @@
               map.fitBounds(bounds, { maxZoom: NAME_ZOOM, padding: [20,20] });
             }
           }
-          justAppliedFilter = false;
+          window.justAppliedFilter = false;
         }
       }catch(err){
         console.error('Error loading map data:', err);
@@ -213,10 +241,16 @@
     
     if (UI.btnFollow) UI.btnFollow.textContent = '📌 Ikuti Lokasi Saya';
     
+    didCenterOnLocate = false;
     watchId = navigator.geolocation.watchPosition(
       (pos)=>{
         const { latitude, longitude, accuracy } = pos.coords;
         console.log('Geolocation updated:', latitude, longitude, accuracy);
+        // Center and zoom to location on first fix
+        if (map && !didCenterOnLocate) {
+          try { map.setView([latitude, longitude], 16); } catch(_){}
+          didCenterOnLocate = true;
+        }
         
         if (meMarker) {
           meMarker.setLatLng([latitude, longitude]);
@@ -275,24 +309,58 @@
   function init(){
     console.log('Initializing map application with filters and tracking...');
     
-    // Inisialisasi UI elements
+    // Inisialisasi UI elements (sinkron dengan public/index.php)
     UI.btnFilter = document.getElementById('btnFilter');
     UI.btnLocate = document.getElementById('btnLocate');
     UI.btnFollow = document.getElementById('btnFollow');
     UI.ovFilter = document.getElementById('ovFilter');
-    UI.q = document.getElementById('q');
+    UI.q = document.getElementById('f_q');
     UI.qSuggest = document.getElementById('qSuggest');
-    UI.selKab = document.getElementById('selKab');
-    UI.selKec = document.getElementById('selKec');
-    UI.selKel = document.getElementById('selKel');
-    UI.selJenis = document.getElementById('selJenis');
+    UI.selKab = document.getElementById('f_kab');
+    UI.selKec = document.getElementById('f_kec');
+    UI.selKel = document.getElementById('f_kel');
+    UI.selJenis = document.getElementById('f_jenis');
+    const btnApply = document.getElementById('btnApply');
+    const btnReset = document.getElementById('btnReset');
     
-    // Event listener untuk tombol filter
-    if (UI.btnFilter) {
+    // Event listener untuk tombol filter (toggle overlay .active)
+    if (UI.btnFilter && UI.ovFilter) {
       UI.btnFilter.addEventListener('click', function() {
-        if (UI.ovFilter) {
-          UI.ovFilter.hidden = !UI.ovFilter.hidden;
+        UI.ovFilter.classList.toggle('active');
+      });
+    }
+
+    // Tombol Terapkan/Reset pada overlay filter
+    if (btnApply) {
+      btnApply.addEventListener('click', function(){
+        filter.q = (UI.q?.value || '').trim();
+        filter.kab = UI.selKab?.value || '';
+        filter.kec = UI.selKec?.value || '';
+        filter.kel = UI.selKel?.value || '';
+        if (UI.selJenis) {
+          const selected = Array.from(UI.selJenis.selectedOptions || []).map(o=>o.value);
+          filter.jenis = selected;
         }
+        // Auto-zoom satu kali setelah apply
+        try { window.justAppliedFilter = true; } catch(_){ }
+        if (typeof window.loadMapData === 'function') window.loadMapData();
+        if (UI.qSuggest) UI.qSuggest.style.display = 'none';
+        if (UI.ovFilter) UI.ovFilter.classList.remove('active');
+      });
+    }
+    if (btnReset) {
+      btnReset.addEventListener('click', function(){
+        if (UI.q) UI.q.value = '';
+        if (UI.selKab) UI.selKab.value = '';
+        if (UI.selKec) UI.selKec.innerHTML = '<option value="">Semua Kecamatan</option>';
+        if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
+        if (UI.selJenis) Array.from(UI.selJenis.options).forEach(o=>o.selected=false);
+        filter.q=''; filter.kab=''; filter.kec=''; filter.kel=''; filter.jenis=[];
+        if (typeof window.loadMapData === 'function') window.loadMapData();
+        if (UI.qSuggest) UI.qSuggest.style.display = 'none';
+        // Kembalikan ke default view
+        try { if (map) map.setView(DEFAULT_CENTER, DEFAULT_ZOOM); } catch(_){}
+        window.justAppliedFilter = false;
       });
     }
     
@@ -400,16 +468,72 @@
       });
     }
     
-    // Event listener untuk select jenis
-    if (UI.selJenis) {
-      UI.selJenis.addEventListener('change', function() {
-        const selected = Array.from(this.selectedOptions).map(o => o.value);
-        filter.jenis = selected;
-        if (window.loadMapData) {
-          window.loadMapData();
+    // Perubahan jenis akan diaplikasikan saat klik Terapkan
+
+    // =====================
+    // Autosuggest f_q input
+    // =====================
+    let suggestTimer = null;
+    function hideSuggest(){ if (UI.qSuggest) { UI.qSuggest.style.display='none'; UI.qSuggest.innerHTML=''; } }
+    function renderSuggest(items){
+      if (!UI.qSuggest) return;
+      if (!items.length){ hideSuggest(); return; }
+      const html = items.map((r,idx)=>{
+        const name = (r.nama_sarana||'').toString();
+        const addr = [r.kelurahan, r.kecamatan, r.kabupaten].filter(Boolean).join(', ');
+        return `<div class="suggest-item" data-name="${escapeHtml(name)}" data-id="${r.id??''}">
+                  <div style="font-weight:600">${escapeHtml(name)}</div>
+                  ${addr?`<div style="font-size:12px;color:#6b7280">${escapeHtml(addr)}</div>`:''}
+                </div>`;
+      }).join('');
+      UI.qSuggest.innerHTML = html;
+      UI.qSuggest.style.display = 'block';
+    }
+    if (UI.q) {
+      UI.q.addEventListener('input', function(){
+        const term = this.value.trim();
+        clearTimeout(suggestTimer);
+        if (term.length < 2){ hideSuggest(); return; }
+        suggestTimer = setTimeout(async()=>{
+          const items = await fetchSuggestNames(term, 10);
+          renderSuggest(items);
+        }, 250);
+      });
+      // Enter to apply first result if open
+      UI.q.addEventListener('keydown', function(e){
+        if (e.key === 'Escape'){ hideSuggest(); return; }
+        if (e.key === 'Enter'){
+          const first = UI.qSuggest && UI.qSuggest.querySelector('.suggest-item');
+          if (first){
+            const nm = first.getAttribute('data-name')||'';
+            UI.q.value = nm;
+            filter.q = nm;
+            try { window.justAppliedFilter = true; } catch(_){ }
+            if (typeof window.loadMapData === 'function') window.loadMapData();
+            hideSuggest();
+            e.preventDefault();
+          }
         }
       });
     }
+    if (UI.qSuggest){
+      UI.qSuggest.addEventListener('click', function(e){
+        const el = e.target.closest('.suggest-item');
+        if (!el) return;
+        const nm = el.getAttribute('data-name')||'';
+        UI.q.value = nm;
+        filter.q = nm;
+        try { window.justAppliedFilter = true; } catch(_){ }
+        if (typeof window.loadMapData === 'function') window.loadMapData();
+        hideSuggest();
+      });
+    }
+    // Hide suggest when clicking outside
+    document.addEventListener('click', function(e){
+      const wrap = document.querySelector('.suggest-wrap');
+      if (!wrap) return;
+      if (!wrap.contains(e.target)) hideSuggest();
+    });
     
     // Load data awal untuk filter
     Promise.all([
@@ -428,6 +552,21 @@
           `<option value="${escapeHtml(j.nama_jenis)}">${escapeHtml(j.nama_jenis)} (${j.count??0})</option>`
         ).join('');
       }
+      // Peta icon jenis (custom base64 bila ada, jika tidak pakai aset default)
+      try {
+        if (Array.isArray(jens)) {
+          for (const j of jens) {
+            if (j && j.nama_jenis) {
+              if (j.icon_base64) {
+                jenisIconMap[j.nama_jenis] = `data:image/png;base64,${j.icon_base64}`;
+              } else {
+                jenisIconMap[j.nama_jenis] = `../assets/icon/${slugify(j.nama_jenis)}.png`;
+              }
+            }
+          }
+        }
+        if (!jenisIconMap['Lainnya']) jenisIconMap['Lainnya'] = `../assets/icon/${slugify('Lainnya')}.png`;
+      } catch (e) { console.warn('Gagal membangun peta icon jenis:', e); }
     }).catch(err => {
       console.error('Error loading initial filter data:', err);
     });

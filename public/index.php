@@ -25,6 +25,8 @@ if (!isset($_GET['noauth']) && !isLoggedIn()) {
     }
   </style>
   <style>
+    /* Hide legend button (removed by request) */
+    #btnLegend { display: none !important; }
     html,
     body,
     #map {
@@ -573,15 +575,7 @@ if (!isset($_GET['noauth']) && !isLoggedIn()) {
       </div>
     </div>
   </div>
-  <!-- Overlay Legend - positioned just 2px above the legend button -->
-  <div id="ovLegend" class="overlay" style="left:100px; bottom:50px;">
-    <div class="ov-box" style="width: min(90vw, 300px); max-height: 50vh;">
-      <div class="ov-head">
-        <div style="font-weight:700">Legenda</div><button class="btn-close" data-close="#ovLegend">✕</button>
-      </div>
-      <div class="ov-body" id="legendBody" style="padding: 8px; line-height: 1.3;"></div>
-    </div>
-  </div>
+  <!-- Legend overlay removed by request -->
 
   <!-- Modal Edit Sarana -->
   <dialog id="dlgEditSarana">
