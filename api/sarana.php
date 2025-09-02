@@ -65,6 +65,7 @@ error_log("API sarana.php - Request method: $method");
 if ($method === 'GET') {
     // ===== Filters umum =====
     $q     = $_GET['q'] ?? null;
+    $sid   = isset($_GET['id']) ? intval($_GET['id']) : 0; // filter by ID jika diberikan
     $kab   = $_GET['kabupaten'] ?? null;
     $kec   = $_GET['kecamatan'] ?? null;
     $kel   = $_GET['kelurahan'] ?? null;
@@ -106,10 +107,23 @@ if ($method === 'GET') {
     $params = [];
 
     if ($q) {
-        // Gunakan penilaian relevansi untuk pencarian
-        $base .= " AND (s.nama_sarana LIKE ? OR s.kelurahan LIKE ? OR s.kecamatan LIKE ? OR s.kabupaten LIKE ?)";
-        $likeContains = "%$q%";
-        array_push($params, $likeContains, $likeContains, $likeContains, $likeContains);
+        // Tokenize kata kunci agar pencarian lebih fleksibel (tiap token harus cocok di salah satu kolom)
+        $tokens = preg_split('/\s+/', trim($q));
+        foreach ($tokens as $tok) {
+            if ($tok === '') continue;
+            $like = "%$tok%";
+            if ($jenisAvail) {
+                $base .= " AND (s.nama_sarana LIKE ? OR s.kelurahan LIKE ? OR s.kecamatan LIKE ? OR s.kabupaten LIKE ? OR gj.jenis_list LIKE ?)";
+                array_push($params, $like, $like, $like, $like, $like);
+            } else {
+                $base .= " AND (s.nama_sarana LIKE ? OR s.kelurahan LIKE ? OR s.kecamatan LIKE ? OR s.kabupaten LIKE ?)";
+                array_push($params, $like, $like, $like, $like);
+            }
+        }
+    }
+    if ($sid > 0) {
+        $base .= " AND s.id = ?";
+        $params[] = $sid;
     }
     if ($kab) {
         $base .= " AND s.kabupaten = ?";
@@ -157,6 +171,194 @@ if ($method === 'GET') {
         $select = "SELECT s.*, gj.jenis_list, gj.jenis_ids";
     } else {
         $select = "SELECT s.*";
+    }
+
+    // ===== Ekspor CSV (menghormati filter yang sama) =====
+    $export = $_GET['export'] ?? null;
+    if ($export === 'csv') {
+        try {
+            // Urutkan default saat ekspor
+            $orderBy = ($hasColumn)($pdo, 'data_sarana', 'updated_at') ? "s.updated_at DESC, s.id DESC" : "s.id DESC";
+            $finalParams = $params;
+            if ($q) {
+                $orderBy = "CASE
+                                WHEN s.nama_sarana LIKE ? THEN 1
+                                WHEN s.nama_sarana LIKE ? THEN 2
+                                WHEN s.kelurahan LIKE ? THEN 3
+                                WHEN s.kecamatan LIKE ? THEN 4
+                                WHEN s.kabupaten LIKE ? THEN 5
+                                ELSE 6
+                            END, " . $orderBy;
+                $searchParams = ["$q%", "%$q%", "%$q%", "%$q%", "%$q%"];
+                $finalParams = array_merge($searchParams, $params);
+            }
+
+            $sql = $select . $base . " ORDER BY " . $orderBy;
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($finalParams);
+            $rows = $stmt->fetchAll();
+
+            // Siapkan header CSV
+            header('Content-Type: text/csv; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="sarana_export_'.date('Ymd_His').'.csv"');
+            // Tulis BOM agar Excel membaca UTF-8 dengan benar
+            echo "\xEF\xBB\xBF";
+            $out = fopen('php://output', 'w');
+            // Header kolom
+            fputcsv($out, ['id','nama_sarana','latitude','longitude','kabupaten','kecamatan','kelurahan','jenis']);
+
+            foreach ($rows as $r) {
+                $jenisCol = '';
+                if ($jenisAvail) {
+                    $jenisCol = isset($r['jenis_list']) && $r['jenis_list'] !== null ? str_replace('|', ', ', $r['jenis_list']) : '';
+                }
+                fputcsv($out, [
+                    $r['id'] ?? '',
+                    $r['nama_sarana'] ?? '',
+                    $r['latitude'] ?? '',
+                    $r['longitude'] ?? '',
+                    $r['kabupaten'] ?? '',
+                    $r['kecamatan'] ?? '',
+                    $r['kelurahan'] ?? '',
+                    $jenisCol,
+                ]);
+            }
+            fclose($out);
+            exit;
+        } catch (Exception $e) {
+            respond(['error' => 'Gagal mengekspor data', 'detail' => $e->getMessage()], 500);
+        }
+    }
+
+    if ($export === 'xlsx') {
+        // Minimal XLSX builder using ZipArchive with inline strings
+        try {
+            $orderBy = ($hasColumn)($pdo, 'data_sarana', 'updated_at') ? "s.updated_at DESC, s.id DESC" : "s.id DESC";
+            $finalParams = $params;
+            if ($q) {
+                $orderBy = "CASE\n                                WHEN s.nama_sarana LIKE ? THEN 1\n                                WHEN s.nama_sarana LIKE ? THEN 2\n                                WHEN s.kelurahan LIKE ? THEN 3\n                                WHEN s.kecamatan LIKE ? THEN 4\n                                WHEN s.kabupaten LIKE ? THEN 5\n                                ELSE 6\n                            END, " . $orderBy;
+                $searchParams = ["$q%", "%$q%", "%$q%", "%$q%", "%$q%"];
+                $finalParams = array_merge($searchParams, $params);
+            }
+
+            $sql = $select . $base . " ORDER BY " . $orderBy;
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($finalParams);
+            $rows = $stmt->fetchAll();
+
+            $headers = ['id','nama_sarana','latitude','longitude','kabupaten','kecamatan','kelurahan','jenis'];
+            $dataRows = [];
+            foreach ($rows as $r) {
+                $jenisCol = '';
+                if ($jenisAvail) $jenisCol = isset($r['jenis_list']) && $r['jenis_list'] !== null ? str_replace('|', ', ', $r['jenis_list']) : '';
+                $dataRows[] = [
+                    (string)($r['id'] ?? ''),
+                    (string)($r['nama_sarana'] ?? ''),
+                    (string)($r['latitude'] ?? ''),
+                    (string)($r['longitude'] ?? ''),
+                    (string)($r['kabupaten'] ?? ''),
+                    (string)($r['kecamatan'] ?? ''),
+                    (string)($r['kelurahan'] ?? ''),
+                    (string)$jenisCol,
+                ];
+            }
+
+            // Helpers
+            $colLetter = function($i){ $s=''; $i++; while($i>0){ $m=($i-1)%26; $s=chr(65+$m).$s; $i=intval(($i-1)/26);} return $s; };
+            $xmlEscape = function($v){ return htmlspecialchars($v, ENT_XML1|ENT_COMPAT, 'UTF-8'); };
+
+            // Build sheet XML with inline strings
+            $rowsXml = '';
+            // Header row
+            $rowsXml .= '<row r="1">';
+            foreach ($headers as $ci=>$h){
+                $ref = $colLetter($ci).'1';
+                $rowsXml .= '<c r="'.$ref.'" t="inlineStr"><is><t>'.$xmlEscape($h).'</t></is></c>';
+            }
+            $rowsXml .= '</row>';
+            // Data rows
+            $rnum = 2;
+            foreach ($dataRows as $row){
+                $rowsXml .= '<row r="'.$rnum.'">';
+                foreach ($row as $ci=>$val){
+                    $ref = $colLetter($ci).$rnum;
+                    // numeric detection for lat/long
+                    if ($ci===2 || $ci===3) {
+                        $num = is_numeric($val) ? (string)$val : '';
+                        if ($num !== '') { $rowsXml .= '<c r="'.$ref.'" t="n"><v>'.$num.'</v></c>'; }
+                        else { $rowsXml .= '<c r="'.$ref.'" t="inlineStr"><is><t>'.$xmlEscape($val).'</t></is></c>'; }
+                    } else {
+                        $rowsXml .= '<c r="'.$ref.'" t="inlineStr"><is><t>'.$xmlEscape($val).'</t></is></c>';
+                    }
+                }
+                $rowsXml .= '</row>';
+                $rnum++;
+            }
+            $lastRef = $colLetter(count($headers)-1).($rnum-1);
+            $sheetXml = '<?xml version="1.0" encoding="UTF-8"?>'
+                .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                .'<dimension ref="A1:'.$lastRef.'"/>'
+                .'<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+                .'<sheetFormatPr defaultRowHeight="15"/>'
+                .'<sheetData>'.$rowsXml.'</sheetData>'
+                .'</worksheet>';
+
+            $contentTypes = '<?xml version="1.0" encoding="UTF-8"?>'
+                .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+                .'<Default Extension="xml" ContentType="application/xml"/>'
+                .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+                .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+                .'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+                .'</Types>';
+
+            $rels = '<?xml version="1.0" encoding="UTF-8"?>'
+                .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+                .'</Relationships>';
+
+            $workbook = '<?xml version="1.0" encoding="UTF-8"?>'
+                .'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                .'<sheets><sheet name="Sarana" sheetId="1" r:id="rId1"/></sheets>'
+                .'</workbook>';
+
+            $wbRels = '<?xml version="1.0" encoding="UTF-8"?>'
+                .'<Relationships xmlns="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+                .'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+                .'</Relationships>';
+
+            $styles = '<?xml version="1.0" encoding="UTF-8"?>'
+                .'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                .'<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
+                .'<fills count="1"><fill><patternFill patternType="none"/></fill></fills>'
+                .'<borders count="1"><border/></borders>'
+                .'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+                .'<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>'
+                .'</styleSheet>';
+
+            $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
+            $zip = new ZipArchive();
+            if (!$zip->open($tmp, ZipArchive::OVERWRITE)) {
+                respond(['error' => 'Gagal membuat arsip XLSX'], 500);
+            }
+            $zip->addFromString('[Content_Types].xml', $contentTypes);
+            $zip->addFromString('_rels/.rels', $rels);
+            $zip->addFromString('xl/workbook.xml', $workbook);
+            $zip->addFromString('xl/_rels/workbook.xml.rels', $wbRels);
+            $zip->addFromString('xl/worksheets/sheet1.xml', $sheetXml);
+            $zip->addFromString('xl/styles.xml', $styles);
+            $zip->close();
+
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment; filename="sarana_export_'.date('Ymd_His').'.xlsx"');
+            header('Content-Length: '.filesize($tmp));
+            readfile($tmp);
+            @unlink($tmp);
+            exit;
+        } catch (Exception $e) {
+            respond(['error' => 'Gagal mengekspor XLSX', 'detail' => $e->getMessage()], 500);
+        }
     }
 
     // ===== Jika mode paginasi (admin) =====

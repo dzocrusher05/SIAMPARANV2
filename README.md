@@ -1,170 +1,178 @@
-# SIAMPARAN - Sistem Informasi Pemetaan Sarana
+# SIAMPARAN – Sistem Informasi Pemetaan Sarana
 
-SIAMPARAN adalah sistem informasi berbasis web untuk pemetaan sarana kesehatan secara interaktif menggunakan Google Maps. Aplikasi ini memungkinkan pengguna untuk mengelola data sarana kesehatan, memvisualisasikannya dalam bentuk peta, dan menganalisis distribusi sarana di berbagai wilayah.
+Aplikasi web untuk memetakan dan mengelola data sarana secara interaktif menggunakan Leaflet. Proyek ini berfokus pada kemudahan administrasi data, performa pemuatan peta, dan UX yang ringkas namun kaya fitur.
 
 ## Fitur Utama
 
-- **Pemetaan Interaktif**: Visualisasi data sarana kesehatan menggunakan peta interaktif
-- **Manajemen Data**: CRUD (Create, Read, Update, Delete) data sarana kesehatan
-- **Import Data**: Import data dari file Excel
-- **Filter dan Pencarian**: Filter data berdasarkan wilayah dan jenis sarana
-- **Autentikasi Admin**: Sistem login untuk pengelolaan data
-- **Proteksi Halaman**: Halaman peta hanya dapat diakses setelah login
+- Pemetaan interaktif (Leaflet + MarkerCluster) pada `public/index.php`.
+- Filter peta lengkap (Kabupaten/Kecamatan/Kelurahan/Jenis) + autosuggest nama sarana.
+- Ikon sarana per jenis:
+  - Custom icon tersimpan di kolom `icon` tabel `jenis_sarana` (dibaca sebagai `icon_base64` via API).
+  - Fallback ke file `assets/icon/<slug-nama-jenis>.png` bila icon khusus tidak ada.
+- Admin Dashboard (`admin/index.php`):
+  - CRUD data sarana dan jenis.
+  - Export CSV/XLSX (sesuai filter aktif) – menu dropdown “Export”.
+  - Pencarian cepat (debounce) dan pencarian fleksibel (tokenized LIKE) di API.
+  - Sidebar dapat disembunyikan/ditampilkan + persist (localStorage) + shortcut Ctrl+I.
+  - Filter “Jenis” di header Data Sarana dengan dropdown elegan + autosuggest + animasi, tidak terpotong konten (posisi floating).
+- Ubah Jenis Sarana Massal (`admin/jenis_sarana_massal.php`):
+  - Ubah massal langsung (jenis lama → jenis baru).
+  - Import CSV mapping (jenis_lama, jenis_baru).
+  - Submenu “Pindahkan Per Data”: muat sarana pada jenis tertentu, pilih sebagian (checkbox), pindahkan ke jenis lain. Hot reload + toast.
 
 ## Struktur Direktori
 
 ```
 SIAMPARAN/
-├── admin/           # Halaman administrasi
-├── api/             # API endpoints
-├── assets/          # File assets (gambar, ikon, dll)
-├── config/          # Konfigurasi aplikasi
-├── public/          # Halaman publik (peta)
-├── sql/             # File SQL skema database
-├── styles/          # File CSS/Tailwind
-├── tools/           # Tools tambahan
-├── docs/            # Dokumentasi
-└── ...
+├─ admin/          # Halaman admin (dashboard, import, mass update, dll.)
+├─ api/            # API endpoints (PHP)
+├─ assets/         # Aset statis: ikon default per jenis (assets/icon/*.png), favicon, template CSV
+├─ config/         # Konfigurasi (db, auth)
+├─ public/         # Halaman peta (public/index.php) dan skrip peta
+├─ sql/            # Skema database (schema_core.sql)
+├─ styles/         # (opsional) sumber CSS/Tailwind
+└─ tools/ docs/    # utilitas & dokumentasi tambahan
 ```
 
-## Teknologi yang Digunakan
+## Teknologi
 
-- **Backend**: PHP (tanpa framework)
-- **Database**: MySQL
-- **Frontend**: HTML, CSS, JavaScript
-- **Pemetaan**: Leaflet.js dengan Google Maps
-- **Styling**: Tailwind CSS
-- **Autentikasi**: Session-based
-- **Package Manager**: npm (untuk Tailwind CSS)
+- Backend: PHP (tanpa framework)
+- Database: MySQL / MariaDB
+- Frontend: HTML, CSS, JavaScript
+- Peta: Leaflet + leaflet.markercluster
+- Styling: CSS utilitas ringan (opsional Tailwind)
+- Autentikasi: session-based
 
 ## Instalasi
 
 ### Prasyarat
 
-- Server web dengan PHP 7.4+
-- Database MySQL
-- Composer (opsional)
-- npm (untuk membangun CSS)
+- PHP 7.4+ (atau 8.x)
+- MySQL / MariaDB
+- Web server (Apache/Nginx) terkonfigurasi
 
-### Langkah Instalasi
+### Langkah
 
-1. **Clone atau download repository**
-   ```bash
-   git clone <url-repository>
-   ```
-
-2. **Buat database baru**
-   ```sql
-   CREATE DATABASE pemetaan_sarana_db;
-   ```
-
-3. **Impor skema database**
-   ```bash
-   mysql -u root -p pemetaan_sarana_db < sql/schema_core.sql
-   ```
-
-4. **Konfigurasi database**
-   - Edit file `config/db.php` atau buat file `config/db.custom.php`:
-   ```php
-   <?php
-   $DB_HOST = 'localhost';
-   $DB_NAME = 'pemetaan_sarana_db';
-   $DB_USER = 'root';
-   $DB_PASS = '';
-   ```
-
-5. **Install dependensi npm (untuk Tailwind CSS)**
-   ```bash
-   npm install
-   ```
-
-6. **Bangun file CSS**
-   ```bash
-   npm run build:css
-   ```
-
-7. **Akses aplikasi**
-   Buka aplikasi melalui browser di `http://localhost/siamparan`
-
-## Sistem Autentikasi Admin
-
-### Akses Login
-- URL: `/admin/login.php`
-
-### Kredensial Default
-- Username: `admin`
-- Password: `admin123`
-
-### Halaman Admin
-Setelah login, pengguna akan diarahkan ke dashboard admin (`/admin/index.php`) yang berisi:
-- Manajemen data sarana
-- Manajemen jenis sarana
-- Import data sarana
-- Manajemen wilayah
-- Manajemen user (khusus admin)
-- Ganti password
-- Logout
-
-## Proteksi Halaman
-
-Halaman peta (`/public/index.php`) dilindungi dan hanya dapat diakses oleh pengguna yang telah login. Jika pengguna mencoba mengakses halaman peta tanpa login, mereka akan diarahkan ke halaman login admin.
-
-## Pengembangan
-
-### Struktur Basis Data
-
-Aplikasi menggunakan 3 tabel utama:
-
-1. `data_sarana`: Menyimpan informasi dasar sarana
-2. `jenis_sarana`: Menyimpan jenis-jenis sarana
-3. `sarana_jenis`: Tabel pivot untuk relasi many-to-many
-
-### API Endpoints
-
-API endpoints berada di direktori `/api/`:
-- `/api/sarana.php`: Mengelola data sarana
-- `/api/jenis.php`: Mengelola jenis sarana
-- `/api/wilayah.php`: Mengelola data wilayah
-- `/api/import_sarana.php`: Endpoint untuk import data
-
-### Pengembangan CSS
-
-Aplikasi menggunakan Tailwind CSS yang perlu dibangun:
-
+1) Clone repo
 ```bash
-# Bangun CSS untuk halaman publik dan admin
-npm run build:css
-
-# Bangun CSS hanya untuk halaman publik
-npm run build:css:public
-
-# Bangun CSS hanya untuk halaman admin
-npm run build:css:admin
+git clone <url-repository>
+cd SIAMPARAN
 ```
 
-### Penyesuaian Aplikasi
+2) Buat database & impor skema
+```sql
+CREATE DATABASE siarmap_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+```bash
+mysql -u <user> -p siarmap_db < sql/schema_core.sql
+```
 
-Untuk menyesuaikan aplikasi:
+3) Konfigurasi koneksi DB
+Edit `config/db.php` atau sediakan `config/db.custom.php`:
+```php
+<?php
+$DB_HOST = 'localhost';
+$DB_NAME = 'siarmap_db';
+$DB_USER = 'root';
+$DB_PASS = '';
+```
 
-1. **Ubah konfigurasi database**: Edit file `config/db.php` atau buat `config/db.custom.php`
-2. **Sesuaikan jenis sarana**: Modifikasi file `public/app_map.js` bagian `JENIS_META`
-3. **Ubah tampilan**: Edit file CSS di direktori `styles/` kemudian jalankan `npm run build:css`
-4. **Tambahkan fitur**: Tambahkan file PHP baru di direktori `admin/` atau `api/`
+4) Pastikan aset peta lokal tersedia
+- `public/vendor/leaflet/leaflet.js` & `leaflet.css`
+- `public/vendor/leaflet.markercluster/leaflet.markercluster.js`
+- `public/vendor/leaflet.markercluster/MarkerCluster.css` & `MarkerCluster.Default.css`
 
-### Tambahkan Fitur Baru
+Catatan: `public/index.php` sudah menyiapkan CSS fallback CDN; JS Leaflet/Cluster dimuat lokal dulu dan akan mencoba CDN jika gagal.
 
-Untuk menambahkan fitur baru:
+5) Konfigurasi akses admin
+- Lihat `config/auth.php` untuk mekanisme login.
+- Buat akun admin sesuai kebutuhan (sesuaikan dengan environment Anda).
 
-1. Buat endpoint API baru di direktori `/api/`
-2. Tambahkan halaman admin di direktori `/admin/`
-3. Tambahkan logika frontend di `/public/app_map.js` jika diperlukan
-4. Tambahkan styling di `/styles/tailwind.css` jika diperlukan
-5. Bangun ulang CSS dengan `npm run build:css`
+## Menjalankan Secara Lokal
 
-## Lisensi
+Letakkan proyek pada root server lokal (mis. XAMPP/Apache) lalu akses:
+- Peta Publik: `http://localhost/SIAMPARAN/public/index.php`
+- Admin: `http://localhost/SIAMPARAN/admin/index.php`
 
-Aplikasi ini dikembangkan untuk keperluan internal dan tidak memiliki lisensi open source resmi. Silakan hubungi pengembang untuk informasi lebih lanjut.
+## Ikon Jenis Sarana
 
-## Dukungan
+- Custom icon (PNG 32×32) bisa diunggah via Admin → Jenis Sarana (disimpan sebagai BLOB di kolom `icon`).
+- Fallback: `assets/icon/<slug-nama-jenis>.png`. Penamaan otomatis: huruf kecil, spasi/karakter non-alfanumerik → `-`.
+  - Contoh: “Puskesmas Pembantu” → `assets/icon/puskesmas-pembantu.png`.
 
-Untuk bantuan teknis, silakan hubungi tim pengembang atau buat issue di repository ini.
+## Export Data
+
+- CSV: `api/sarana.php?export=csv&...filter`
+- XLSX: `api/sarana.php?export=xlsx&...filter` (ZipArchive; tanpa dependensi eksternal)
+- Dari Admin → Data Sarana → tombol “Export ▾” (menghormati q & filterJenis yang aktif)
+
+## Perbaikan & Peningkatan Terbaru
+
+- Peta publik (public/app_map.js) distabilkan:
+  - Fallback provider tile, invalidasi ukuran setelah render, clustering.
+  - Autosuggest nama, GPS dengan auto-center sekali, Reset mengembalikan view default.
+  - Popup marker menampilkan nama/wilayah/jenis + tautan ke Google Maps.
+- Admin Dashboard:
+  - Sidebar toggle (persist, Ctrl+I) + animasi; konten menjadi full lebar saat sidebar tersembunyi.
+  - Kolom “Jenis” memiliki dropdown filter cantik dengan autosuggest, floating (tidak terpotong konten) + animasi open/close halus.
+  - Pencarian admin (q) fleksibel (tokenized LIKE) dan debounce di input.
+  - Export CSV/XLSX dengan dropdown; XLSX generator minimal.
+- Mass Update Jenis (`admin/jenis_sarana_massal.php`):
+  - Submenu “Pindahkan Per Data” (GET daftar sarana by jenis, POST pindahkan sebagian)
+  - Hot reload daftar dan jumlah per jenis setelah pindah (toasts/konfirmasi SweetAlert, fallback aman ke alert/confirm).
+
+## API Ringkas
+
+- `api/sarana.php` (GET)
+  - Filter: `q`, `kabupaten`, `kecamatan`, `kelurahan`, `jenis` (id/nama, comma-separated), `bbox`
+  - Paginasi admin: `page`, `per_page`; respon: `{ data, total, total_pages }`
+  - Export: `export=csv|xlsx`
+- `api/jenis.php` (GET)
+  - Mengembalikan daftar jenis beserta `count`, dan `icon_base64` bila kolom `icon` ada.
+- `api/jenis_sarana_massal.php` (POST JSON `_method=PUT`)
+  - Ubah semua mapping dari `old_jenis_id` ke `new_jenis_id`.
+- `api/count_jenis_sarana.php` (POST `{ jenis_id }`)
+  - Hitung berapa data di jenis tersebut.
+- `api/jenis_sarana_select.php`
+  - GET `?jenis_id=`: daftar sarana di jenis tertentu.
+  - POST `{ old_jenis_id, new_jenis_id, sarana_ids: [] }`: pindahkan sebagian.
+- `api/import_jenis_sarana.php` (POST multipart CSV)
+  - Import mapping jenis massal dari CSV.
+
+## Catatan Deployment
+
+- Pastikan file vendor Leaflet/MarkerCluster tersedia; bila tidak, gunakan CDN (sudah disiapkan di `public/index.php`).
+- Aktifkan zip (ZipArchive) untuk export XLSX (umumnya sudah tersedia di hosting).
+- Hard refresh (Ctrl+F5) setelah update `public/app_map.js` dan `admin/index.php` agar cache browser tersingkir.
+
+## Kontribusi & Push ke GitHub
+
+1) Buat branch fitur/bugfix:
+```bash
+git checkout -b feat/filter-jenis-admin
+```
+2) Commit terarah dan kecil:
+```bash
+git add -A
+git commit -m "admin: jenis header filter (dropdown + autosuggest + floating)"
+```
+3) Push branch:
+```bash
+git push origin feat/filter-jenis-admin
+```
+4) Buka Pull Request dengan ringkasan perubahan, langkah uji, dan dampak.
+
+## Troubleshooting
+
+- Peta abu-abu:
+  - Cek konsol untuk error Leaflet loading; pastikan vendor/leaflet ada atau gunakan fallback CDN.
+  - Pastikan `#map` memiliki tinggi (di `public/index.php` telah diset 100vh).
+- Export XLSX gagal:
+  - Cek dukungan `ZipArchive`; aktifkan di PHP config hosting.
+- Dropdown “Jenis” terpotong:
+  - Sudah diatasi dengan mode floating (position: fixed). Pastikan tidak ada overlay lain menutupinya.
+
+---
+
+Lisensi: internal proyek. Hubungi pemilik repositori untuk penggunaan eksternal.
+

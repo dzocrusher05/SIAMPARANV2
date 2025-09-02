@@ -18,6 +18,11 @@ if (!isset($_GET['noauth']) && !isLoggedIn()) {
   <link rel="stylesheet" href="./vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="./vendor/leaflet.markercluster/MarkerCluster.css" />
   <link rel="stylesheet" href="./vendor/leaflet.markercluster/MarkerCluster.Default.css" />
+  <!-- Fallback CSS from CDN to prevent gray map if local assets fail -->
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" media="print" onload="this.media='all'" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" media="print" onload="this.media='all'" />
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     .swal2-container {
@@ -535,7 +540,7 @@ if (!isset($_GET['noauth']) && !isLoggedIn()) {
 </head>
 
 <body>
-  <div id="map"></div>
+  <div id="map" style="height:100vh"></div>
   <!-- Top-right Admin Button -->
   <div class="fab" style="top:12px; right:12px">
     <a class="btn-fab" href="../admin/index.php" title="Buka Admin">⚙️ Admin</a>
@@ -664,7 +669,7 @@ if (!isset($_GET['noauth']) && !isLoggedIn()) {
         ensureCluster(function() {
           console.log('Loading app_map.js...');
           loadScript('./app_map.js', function() {
-            console.log('app_map.js loaded successfully');
+            console.log('app_map.js load attempted');
           });
         });
       });

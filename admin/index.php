@@ -14,7 +14,8 @@ $user = getUserData();
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
       body{background:#f6f7fb;color:#111827}
-      .container{max-width:1100px;margin:0 auto;padding:16px}
+      .container{max-width:1100px;margin:0 auto;padding:16px;transition:max-width .25s ease,padding .2s ease}
+      .container.wide{max-width:100vw;padding-left:8px;padding-right:8px}
       .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.04)}
       .table{width:100%;border-collapse:collapse}
       .table th,.table td{padding:10px 12px;border-top:1px solid #f1f5f9;font-size:14px;vertical-align:top}
@@ -23,6 +24,11 @@ $user = getUserData();
       .btn.primary{background:#111827;color:#fff;border-color:#111827}
       .btn.danger{border-color:#ef4444;color:#ef4444}
       .grid{display:grid;gap:10px}
+      /* Sidebar collapse support + smooth transition */
+      #layoutGrid{transition:grid-template-columns .25s ease}
+      #layoutGrid aside{transition:width .25s ease, opacity .2s ease}
+      #layoutGrid.collapsed{grid-template-columns:0 1fr !important}
+      #layoutGrid.collapsed aside{width:0;opacity:0;pointer-events:none}
       .grid.cols-2{grid-template-columns:1fr 1fr}
       .field label{display:block;font-size:12px;color:#6b7280;margin-bottom:4px}
       .field input{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px}
@@ -60,19 +66,36 @@ $user = getUserData();
       .jenis-search input:focus{outline:none;border-color:#a3b7ff;box-shadow:0 0 0 3px rgba(99,102,241,.2)}
       .jenis-item input{transform:translateY(1px)}
       .jenis-item .cnt{font-size:12px;color:#6b7280}
+      /* Export dropdown */
+      .dropdown{ position:relative }
+      /* Dropdown menus (animated) */
+      .dropdown-menu{ position:absolute; right:0; top:100%; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.12); padding:6px; z-index:20; min-width:140px; display:block; opacity:0; visibility:hidden; transform: translateY(4px) scale(.98); transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s }
+      .dropdown-menu.show{ opacity:1; visibility:visible; transform: translateY(0) scale(1); transition: opacity .18s ease, transform .18s ease, visibility 0s linear 0s }
+      /* Floating menu to ignore parent overflow and table height */
+      .dropdown-menu.float{ position:fixed !important; z-index:1000; }
+      .dropdown-menu.show{ display:block }
+      .dropdown-menu .btn{ display:block; width:100%; text-align:left; margin:2px 0 }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="toolbar" style="justify-content:space-between;margin-bottom:12px">
-        <div style="font-weight:700">Dashboard Admin</div>
+        <div style="font-weight:700;display:flex;align-items:center;gap:8px">
+          <span>Dashboard Admin</span>
+          <button id="btnToggleSidebar" class="btn" title="Sembunyikan Sidebar" aria-label="Toggle Sidebar">
+            <span id="iconSidebar" aria-hidden="true" style="display:inline-flex;align-items:center;gap:6px">
+              <!-- icon placeholder; replaced by JS -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </span>
+          </button>
+        </div>
         <div class="toolbar" style="gap:10px">
           <a class="btn" href="../public/index.php" target="_blank" title="Buka halaman peta">🗺️ Lihat Peta</a>
           <div class="pill">Login: <?php echo htmlspecialchars($user['nama_lengkap']??''); ?></div>
         </div>
       </div>
 
-      <div class="grid cols-2" style="grid-template-columns: 260px 1fr; align-items:start">
+      <div id="layoutGrid" class="grid cols-2" style="grid-template-columns: 260px 1fr; align-items:start">
         <aside class="card" style="padding:12px;position:sticky;top:12px">
           <div style="font-weight:600;margin-bottom:8px">Menu</div>
           <div class="grid" style="grid-template-columns:1fr">
@@ -98,12 +121,43 @@ $user = getUserData();
                   <option value="50">50/hal</option>
                   <option value="100">100/hal</option>
                 </select>
+                <div class="dropdown">
+                  <button id="btnExport" class="btn">Export ▾</button>
+                  <div id="menuExport" class="dropdown-menu">
+                    <button class="btn" data-export="csv">Export CSV</button>
+                    <button class="btn" data-export="xlsx">Export XLSX</button>
+                  </div>
+                </div>
                 <button id="btnAddSarana" class="btn primary">+ Tambah</button>
               </div>
             </div>
             <div style="overflow:auto">
               <table class="table">
-                <thead><tr><th>Nama</th><th>Koordinat</th><th>Wilayah</th><th>Jenis</th><th style="text-align:right">Aksi</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Koordinat</th>
+                    <th>Wilayah</th>
+                    <th style="position:relative">
+                      <span style="display:inline-flex;align-items:center;gap:6px">
+                        Jenis
+                        <button id="btnJenisFilter" class="btn" title="Filter Jenis" style="padding:4px 8px">Filter</button>
+                        <span id="jenisFilterBadge" class="pill" style="display:none"></span>
+                      </span>
+                      <div id="menuJenisFilter" class="dropdown-menu" style="right:0; top:calc(100% + 6px); width:280px; max-height:320px; overflow:auto">
+                        <div style="padding:6px">
+                          <input id="jf_search" placeholder="Cari jenis..." class="field" style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:10px" />
+                        </div>
+                        <div id="jf_list" style="padding:4px 6px; max-height:220px; overflow:auto"></div>
+                        <div style="display:flex; justify-content:space-between; gap:6px; padding:6px">
+                          <button id="jf_clear" class="btn" type="button">Bersihkan</button>
+                          <button id="jf_apply" class="btn primary" type="button">Terapkan</button>
+                        </div>
+                      </div>
+                    </th>
+                    <th style="text-align:right">Aksi</th>
+                  </tr>
+                </thead>
                 <tbody id="saranaRows"></tbody>
               </table>
             </div>
@@ -155,6 +209,49 @@ $user = getUserData();
       const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
       const state = { page:1, perPage:20, q:"", total:0, totalPages:1, filterJenis:[], sarana:[], jenisMaster:[] };
 
+      // Sidebar toggle (persisted)
+      (function(){
+        const layout = document.getElementById('layoutGrid');
+        const btn = document.getElementById('btnToggleSidebar');
+        const container = document.querySelector('.container');
+        if (!layout || !btn || !container) return;
+        const KEY='admin.sidebarCollapsed';
+        const icon = document.getElementById('iconSidebar');
+        const ICON_HIDE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'; // chevron-left
+        const ICON_SHOW = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'; // chevron-right
+        function apply(collapsed){
+          if (collapsed){
+            layout.classList.add('collapsed');
+            container.classList.add('wide');
+            if (icon) icon.innerHTML = ICON_SHOW;
+            btn.title='Tampilkan Sidebar (Ctrl+I)';
+            btn.setAttribute('aria-label','Tampilkan Sidebar');
+          } else {
+            layout.classList.remove('collapsed');
+            container.classList.remove('wide');
+            if (icon) icon.innerHTML = ICON_HIDE;
+            btn.title='Sembunyikan Sidebar (Ctrl+I)';
+            btn.setAttribute('aria-label','Sembunyikan Sidebar');
+          }
+        }
+        try{ apply(localStorage.getItem(KEY)==='1'); }catch(_){ apply(false); }
+        btn.addEventListener('click', ()=>{
+          const wantCollapse = !layout.classList.contains('collapsed');
+          apply(wantCollapse);
+          try{ localStorage.setItem(KEY, wantCollapse ? '1' : '0'); }catch(_){ }
+        });
+        // Keyboard shortcut: Ctrl + I
+        document.addEventListener('keydown', (e)=>{
+          try{
+            const key = e.key || e.code;
+            if (e.ctrlKey && (key==='i' || key==='I' || key==='KeyI')){
+              e.preventDefault();
+              btn.click();
+            }
+          }catch(_){ }
+        });
+      })();
+
       function escapeHtml(s){return String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;");}
 
       async function jfetch(url, opt={}){
@@ -174,6 +271,7 @@ $user = getUserData();
           u.searchParams.set('page', state.page);
           u.searchParams.set('per_page', state.perPage);
           if (state.q) u.searchParams.set('q', state.q);
+          if (state.saranaIdSearch) u.searchParams.set('id', String(state.saranaIdSearch));
           if (state.filterJenis?.length) u.searchParams.set('jenis', state.filterJenis.join(','));
           const r = await jfetch(u.pathname + u.search);
           state.total = r.total; state.totalPages = r.total_pages; const rows = r.data||[];
@@ -362,7 +460,131 @@ $user = getUserData();
           console.error('Error in search:', err);
         }
       });
+      // Debounced search on input for easier find (no need to press Enter)
+      (function(){
+        let t=null; const inp=$('#q');
+        inp.addEventListener('input', ()=>{
+          clearTimeout(t);
+          t=setTimeout(async()=>{ try{ state.q=inp.value.trim(); state.page=1; await loadSarana(); }catch(e){ console.error(e) } }, 300);
+        });
+      })();
       $('#btnAddSarana').addEventListener('click', ()=> openEditSarana(0));
+
+      // ============ Jenis Filter (dropdown + autosuggest) ============
+      (function(){
+        const btn = document.getElementById('btnJenisFilter');
+        const menu = document.getElementById('menuJenisFilter');
+        const badge = document.getElementById('jenisFilterBadge');
+        const list = document.getElementById('jf_list');
+        const input = document.getElementById('jf_search');
+        const btnApply = document.getElementById('jf_apply');
+        const btnClear = document.getElementById('jf_clear');
+        if (!btn || !menu || !list) return;
+
+        function updateBadge(){
+          const n = (state.filterJenis||[]).length;
+          if (n>0){ badge.style.display='inline-block'; badge.textContent = `${n} dipilih`; }
+          else { badge.style.display='none'; }
+        }
+
+        function renderList(q){
+          const term = (q||'').toLowerCase();
+          const data = Array.isArray(state.jenisMaster) ? state.jenisMaster : [];
+          list.innerHTML = data
+            .filter(j => !term || (j.nama_jenis||'').toLowerCase().includes(term))
+            .map(j => {
+              const checked = state.filterJenis.includes(parseInt(j.id,10)) ? 'checked' : '';
+              return `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer">
+                        <input type="checkbox" class="jf_chk" value="${j.id}" ${checked}/>
+                        <span style="flex:1">${(j.nama_jenis||'')}</span>
+                        <span class="pill">${j.count??0}</span>
+                      </label>`;
+            }).join('') || '<div style="padding:8px;color:#6b7280">Tidak ada hasil</div>';
+        }
+
+        async function ensureJenis(){
+          if (Array.isArray(state.jenisMaster) && state.jenisMaster.length) return;
+          try{
+            const rows = await jfetch(API + '/jenis.php');
+            state.jenisMaster = rows || [];
+          }catch(e){ state.jenisMaster = []; }
+        }
+
+        btn.addEventListener('click', async (e)=>{
+          e.stopPropagation();
+          await ensureJenis();
+          renderList('');
+          // Compute floating position to ignore parent overflow
+          const rect = btn.getBoundingClientRect();
+          menu.classList.add('float');
+          menu.style.width = '280px';
+          menu.style.maxHeight = '60vh';
+          menu.style.top = (rect.bottom + 8) + 'px';
+          // align right to the button's right edge
+          const right = Math.max(8, window.innerWidth - rect.right);
+          menu.style.right = right + 'px';
+          menu.style.left = '';
+          menu.classList.toggle('show');
+          setTimeout(()=>{ try{ input && input.focus(); }catch(_){} }, 50);
+        });
+        document.addEventListener('click', (e)=>{
+          if (!menu.contains(e.target) && e.target !== btn){
+            menu.classList.remove('show');
+            // clean floating inline styles
+            menu.classList.remove('float');
+            menu.style.top = menu.style.right = menu.style.left = menu.style.width = menu.style.maxHeight = '';
+          }
+        });
+        input && input.addEventListener('input', ()=> renderList(input.value.trim()));
+        list.addEventListener('click', (e)=>{
+          const el = e.target.closest('.jf_chk'); if (!el) return;
+          const id = parseInt(el.value,10);
+          if (el.checked){ if (!state.filterJenis.includes(id)) state.filterJenis.push(id); }
+          else { state.filterJenis = state.filterJenis.filter(v=>v!==id); }
+          updateBadge();
+        });
+        btnClear && btnClear.addEventListener('click', ()=>{
+          state.filterJenis = [];
+          renderList(input ? input.value.trim() : '');
+          updateBadge();
+        });
+        btnApply && btnApply.addEventListener('click', async ()=>{
+          try{
+            state.page = 1;
+            await loadSarana();
+          }catch(err){ console.error('Apply jenis filter error:', err); }
+          finally{ menu.classList.remove('show'); updateBadge(); }
+        });
+        // Initialize badge on load
+        updateBadge();
+      })();
+
+      // Export dropdown
+      (function(){
+        const btn = document.getElementById('btnExport');
+        const menu = document.getElementById('menuExport');
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          menu.classList.toggle('show');
+        });
+        document.addEventListener('click', ()=> menu.classList.remove('show'));
+        menu.addEventListener('click', (e)=>{
+          const el = e.target.closest('[data-export]');
+          if (!el) return;
+          const typ = el.getAttribute('data-export');
+          try {
+            const u = new URL(API + '/sarana.php', location.origin);
+            u.searchParams.set('export', typ);
+            const qv = ($('#q')?.value || '').trim();
+            if (qv) u.searchParams.set('q', qv);
+            if (Array.isArray(state.filterJenis) && state.filterJenis.length) {
+              u.searchParams.set('jenis', state.filterJenis.join(','));
+            }
+            window.open(u.toString(), '_blank');
+          } catch (err) { console.error('Export error:', err); }
+          menu.classList.remove('show');
+        });
+      })();
 
       // Tabs
       $('#tabBtnSarana').onclick = ()=>{
@@ -638,6 +860,16 @@ $user = getUserData();
       }
 
       // Initial load
+      // Apply URL params (q or sid) for deep-linking
+      (function(){
+        try{
+          const p = new URLSearchParams(location.search);
+          const q0 = (p.get('q')||'').trim();
+          const sid = parseInt(p.get('sid')||p.get('id')||'0',10);
+          if (q0) { state.q = q0; const iq = document.getElementById('q'); if (iq) iq.value = q0; }
+          if (sid>0) { state.saranaIdSearch = sid; }
+        }catch(_){ }
+      })();
       loadSarana().catch(e=>{
         console.error('Error in initial loadSarana:', e);
         $('#saranaRows').innerHTML = `<tr><td colspan="5">Error loading data: ${e.message}</td></tr>`;
