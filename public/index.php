@@ -190,6 +190,8 @@ if (!isset($_GET['noauth']) && !isLoggedIn()) {
       padding: 8px 12px;
       font-size: 14px;
       transition: all 0.2s ease;
+      background: #fff;        /* pastikan tidak gelap di mode gelap */
+      color: #111827;          /* teks selalu terlihat */
     }
 
     .field input:focus,
@@ -571,7 +573,11 @@ if (!isset($_GET['noauth']) && !isLoggedIn()) {
           <div class="field"><label>Kabupaten</label><select id="f_kab"></select></div>
           <div class="field"><label>Kecamatan</label><select id="f_kec"></select></div>
           <div class="field" style="grid-column:1/3"><label>Kelurahan</label><select id="f_kel"></select></div>
-          <div class="field" style="grid-column:1/3"><label>Jenis Sarana</label><select id="f_jenis" multiple size="6" style="height:auto"></select></div>
+          <div class="field" style="grid-column:1/3">
+            <label>Jenis Sarana</label>
+            <div class="jenis-search"><input id="f_jenis_search" placeholder="Cari jenis sarana..." autocomplete="off" /></div>
+            <div id="f_jenis" class="jenis-list"></div>
+          </div>
         </div>
         <div class="actions">
           <button id="btnReset" class="btn">Reset</button>

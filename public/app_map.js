@@ -16,7 +16,8 @@
     btnFilter: null, btnLocate: null, btnFollow: null,
     ovFilter: null,
     q: null, qSuggest: null,
-    selKab: null, selKec: null, selKel: null, selJenis: null
+    selKab: null, selKec: null, selKel: null, selJenis: null,
+    jenisSearch: null
   };
 
   // Filter
@@ -182,8 +183,13 @@
     UI.selKec = document.getElementById('f_kec');
     UI.selKel = document.getElementById('f_kel');
     UI.selJenis = document.getElementById('f_jenis');
+    UI.jenisSearch = document.getElementById('f_jenis_search');
     const btnApply = document.getElementById('btnApply');
     const btnReset = document.getElementById('btnReset');
+
+    // Siapkan opsi default agar dropdown tidak kosong di awal
+    if (UI.selKec && !UI.selKec.innerHTML) UI.selKec.innerHTML = '<option value="">Semua Kecamatan</option>';
+    if (UI.selKel && !UI.selKel.innerHTML) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
 
     // Toggle filter overlay
     if (UI.btnFilter && UI.ovFilter){ UI.btnFilter.addEventListener('click', ()=> UI.ovFilter.classList.toggle('active')); }
@@ -194,7 +200,11 @@
       filter.kab = UI.selKab?.value || '';
       filter.kec = UI.selKec?.value || '';
       filter.kel = UI.selKel?.value || '';
-      if (UI.selJenis) filter.jenis = Array.from(UI.selJenis.selectedOptions||[]).map(o=>o.value);
+      // Kumpulkan pilihan jenis dari checkbox
+      if (UI.selJenis) {
+        const checks = UI.selJenis.querySelectorAll('input[type="checkbox"]:checked');
+        filter.jenis = Array.from(checks).map(i=>i.value);
+      }
       window.justAppliedFilter = true;
       if (typeof window.loadMapData==='function') window.loadMapData();
       if (UI.qSuggest) UI.qSuggest.style.display='none';
@@ -204,11 +214,41 @@
       if (UI.q) UI.q.value=''; if (UI.selKab) UI.selKab.value='';
       if (UI.selKec) UI.selKec.innerHTML = '<option value="">Semua Kecamatan</option>';
       if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
-      if (UI.selJenis) Array.from(UI.selJenis.options).forEach(o=>o.selected=false);
+      if (UI.jenisSearch) UI.jenisSearch.value='';
+      if (UI.selJenis) {
+        UI.selJenis.querySelectorAll('input[type="checkbox"]').forEach(cb=>{ cb.checked = false; cb.parentElement.style.display=''; });
+      }
       filter.q=''; filter.kab=''; filter.kec=''; filter.kel=''; filter.jenis=[];
       if (typeof window.loadMapData==='function') window.loadMapData();
       if (map) try{ map.setView(DEFAULT_CENTER, DEFAULT_ZOOM); }catch{}
     }); }
+
+    // Dinamis: Muat kecamatan saat kabupaten berubah, dan kelurahan saat kecamatan berubah
+    if (UI.selKab){
+      UI.selKab.addEventListener('change', async ()=>{
+        const kab = UI.selKab.value || '';
+        // Reset dependent selects
+        if (UI.selKec) UI.selKec.innerHTML = '<option value="">Semua Kecamatan</option>';
+        if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
+        if (!kab) return; // Jika kabupaten kosong, selesai
+        try{
+          const kecs = await fetchAreas('kecamatan', kab);
+          if (UI.selKec) UI.selKec.innerHTML = '<option value="">Semua Kecamatan</option>' + (Array.isArray(kecs)? kecs.map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('') : '');
+        }catch(_){ /* biarkan default */ }
+      });
+    }
+    if (UI.selKec){
+      UI.selKec.addEventListener('change', async ()=>{
+        const kab = UI.selKab?.value || '';
+        const kec = UI.selKec.value || '';
+        if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
+        if (!kab || !kec) return; // Perlu kedua nilai
+        try{
+          const kels = await fetchAreas('kelurahan', `${kab}|${kec}`);
+          if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>' + (Array.isArray(kels)? kels.map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('') : '');
+        }catch(_){ /* biarkan default */ }
+      });
+    }
 
     // Lokasi & ikuti
     if (UI.btnLocate){ UI.btnLocate.addEventListener('click', function(){ if (watchId===null){ this.textContent='Hentikan Pelacakan'; startLocate(); } else { this.textContent='Lokasi Saya'; stopLocate(); } }); }
@@ -240,7 +280,26 @@
     // Load master filter lalu init map
     Promise.all([ fetchAreas('kabupaten'), fetchJenis() ]).then(([kabs, jens])=>{
       if (UI.selKab) UI.selKab.innerHTML = '<option value="">Semua Kabupaten</option>' + kabs.map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('');
-      if (UI.selJenis) UI.selJenis.innerHTML = jens.map(j=>`<option value="${escapeHtml(j.nama_jenis)}">${escapeHtml(j.nama_jenis)} (${j.count??0})</option>`).join('');
+      // Bangun daftar jenis sebagai checkbox
+      if (UI.selJenis) {
+        const items = Array.isArray(jens) ? jens : [];
+        UI.selJenis.innerHTML = items.map(j=>{
+          const nm = escapeHtml(j.nama_jenis||'');
+          const cnt = typeof j.count==='number' ? j.count : (j.count??0);
+          const checked = filter.jenis.includes(j.nama_jenis) ? ' checked' : '';
+          return `<label class="jenis-item"><input type="checkbox" value="${nm}"${checked} /> <span>${nm} <span class="cnt">(${cnt})</span></span></label>`;
+        }).join('');
+      }
+      // Pencarian jenis lokal
+      if (UI.jenisSearch && UI.selJenis) {
+        UI.jenisSearch.addEventListener('input', ()=>{
+          const q = (UI.jenisSearch.value||'').toLowerCase().trim();
+          UI.selJenis.querySelectorAll('.jenis-item').forEach(el=>{
+            const text = el.textContent.toLowerCase();
+            el.style.display = !q || text.includes(q) ? '' : 'none';
+          });
+        });
+      }
       // Bangun peta icon: pakai base64 dari DB bila ada, jika tidak gunakan fallback assets/icon
       try {
         if (Array.isArray(jens)) {

@@ -75,6 +75,35 @@ $user = getUserData();
       .dropdown-menu.float{ position:fixed !important; z-index:1000; }
       .dropdown-menu.show{ display:block }
       .dropdown-menu .btn{ display:block; width:100%; text-align:left; margin:2px 0 }
+
+      /* Wilayah filter popup polish */
+      #menuWilFilter{ border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.15); width:min(420px,96vw); overflow:hidden; padding:0; }
+      #menuWilFilter .fw-body{ padding:10px 12px; max-height:320px; overflow:auto; }
+      #menuWilFilter .fw-grid{ display:grid; gap:10px; grid-template-columns:1fr 1fr; }
+      #menuWilFilter .fw-full{ grid-column:1 / 3; }
+      #menuWilFilter .field label{ display:block; font-size:12px; color:#6b7280; margin-bottom:4px; }
+      #menuWilFilter select{ width:100%; height:38px; border:1px solid #e5e7eb; border-radius:10px; padding:6px 10px; background:#fff; }
+      #menuWilFilter .fw-actions{ display:flex; justify-content:space-between; gap:8px; padding:10px 12px; border-top:1px solid #eef2f7; background:#fafafa; position:sticky; bottom:0; }
+      /* Export popup polish (mirror wilayah styles) */
+      #menuExport{ border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.15); width:min(520px,96vw); overflow:hidden; padding:0; }
+      #menuExport .fw-body{ padding:10px 12px; max-height:360px; overflow:auto; }
+      #menuExport .fw-grid{ display:grid; gap:10px; grid-template-columns:1fr 1fr; }
+      #menuExport .fw-full{ grid-column:1 / 3; }
+      #menuExport .field label{ display:block; font-size:12px; color:#6b7280; margin-bottom:4px; }
+      #menuExport select{ width:100%; height:38px; border:1px solid #e5e7eb; border-radius:10px; padding:6px 10px; background:#fff; }
+      #menuExport .fw-actions{ display:flex; justify-content:space-between; gap:8px; padding:10px 12px; border-top:1px solid #eef2f7; background:#fafafa; position:sticky; bottom:0; }
+      #menuExport .fw-search{ margin-bottom:6px }
+      #menuExport .fw-search input{ width:100%; height:36px; border:1px solid #e5e7eb; border-radius:10px; padding:6px 10px; }
+      #menuExport select[size]{ height:auto; max-height:180px; }
+      /* Jenis list in Export popup */
+      #menuExport .jenis-list{ display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:260px; overflow:auto; border:1px solid #e5e7eb; border-radius:10px; background:#fff; padding:8px }
+      #menuExport .jenis-item{ display:flex; align-items:center; gap:8px; padding:8px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; }
+      #menuExport .jenis-item:hover{ background:#f8fafc; border-color:#e5e7eb }
+      #menuExport .jenis-item input{ margin-right:6px }
+      #menuExport .jenis-item .cnt{ margin-left:auto; font-size:12px; color:#6b7280; background:#f3f4f6; padding:2px 8px; border-radius:999px }
+      #menuWilFilter .fw-search{ margin-bottom:6px }
+      #menuWilFilter .fw-search input{ width:100%; height:36px; border:1px solid #e5e7eb; border-radius:10px; padding:6px 10px; }
+      #menuWilFilter select[size]{ height:auto; max-height:180px; }
     </style>
   </head>
   <body>
@@ -116,6 +145,7 @@ $user = getUserData();
               <div style="font-weight:600">Data Sarana</div>
               <div class="toolbar">
                 <input id="q" placeholder="Cari nama/wilayah.." class="field" style="padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px">
+                <!-- Filter Wilayah dipindah ke popup pada kolom Wilayah -->
                 <select id="perPage" class="field" style="padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px">
                   <option value="20">20/hal</option>
                   <option value="50">50/hal</option>
@@ -137,7 +167,41 @@ $user = getUserData();
                   <tr>
                     <th>Nama</th>
                     <th>Koordinat</th>
-                    <th>Wilayah</th>
+                    <th style="position:relative">
+                      <span style="display:inline-flex;align-items:center;gap:6px">
+                        Wilayah
+                        <button id="btnWilFilter" class="btn" title="Filter Wilayah" style="padding:4px 8px">Filter</button>
+                        <span id="wilFilterBadge" class="pill" style="display:none"></span>
+                      </span>
+                      <div id="menuWilFilter" class="dropdown-menu" style="right:0; top:calc(100% + 6px);">
+                        <div class="fw-body">
+                          <div class="fw-grid">
+                            <div class="field"><label>Kabupaten</label>
+                              <div class="fw-search"><input id="wf_kab_search" placeholder="Cari kabupaten..."></div>
+                              <select id="wf_kab" size="8">
+                                <option value="">Semua Kabupaten</option>
+                              </select>
+                            </div>
+                            <div class="field"><label>Kecamatan</label>
+                              <div class="fw-search"><input id="wf_kec_search" placeholder="Cari kecamatan..."></div>
+                              <select id="wf_kec" size="8">
+                                <option value="">Semua Kecamatan</option>
+                              </select>
+                            </div>
+                            <div class="field fw-full"><label>Kelurahan</label>
+                              <div class="fw-search"><input id="wf_kel_search" placeholder="Cari kelurahan..."></div>
+                              <select id="wf_kel" size="8">
+                                <option value="">Semua Kelurahan</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="fw-actions">
+                          <button id="wf_clear" class="btn" type="button">Bersihkan</button>
+                          <button id="wf_apply" class="btn primary" type="button">Terapkan</button>
+                        </div>
+                      </div>
+                    </th>
                     <th style="position:relative">
                       <span style="display:inline-flex;align-items:center;gap:6px">
                         Jenis
@@ -207,7 +271,7 @@ $user = getUserData();
       const API = "../api";
       const $ = (s,r=document)=>r.querySelector(s);
       const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-      const state = { page:1, perPage:20, q:"", total:0, totalPages:1, filterJenis:[], sarana:[], jenisMaster:[] };
+      const state = { page:1, perPage:20, q:"", total:0, totalPages:1, filterJenis:[], sarana:[], jenisMaster:[], kab:'', kec:'', kel:'' };
 
       // Sidebar toggle (persisted)
       (function(){
@@ -265,6 +329,19 @@ $user = getUserData();
         return j;
       }
 
+      // API wilayah (reuse pola di public)
+      async function fetchAreas(type, parent){
+        try{
+          const qs = new URLSearchParams({ type });
+          if (parent) qs.set('parent', parent);
+          const url = API + '/areas.php?' + qs.toString();
+          const res = await fetch(url);
+          if (!res.ok) return [];
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        }catch(_){ return []; }
+      }
+
       async function loadSarana(){
         try {
           const u = new URL(API + '/sarana.php', location.origin);
@@ -273,6 +350,9 @@ $user = getUserData();
           if (state.q) u.searchParams.set('q', state.q);
           if (state.saranaIdSearch) u.searchParams.set('id', String(state.saranaIdSearch));
           if (state.filterJenis?.length) u.searchParams.set('jenis', state.filterJenis.join(','));
+          if (state.kab) u.searchParams.set('kabupaten', state.kab);
+          if (state.kec) u.searchParams.set('kecamatan', state.kec);
+          if (state.kel) u.searchParams.set('kelurahan', state.kel);
           const r = await jfetch(u.pathname + u.search);
           state.total = r.total; state.totalPages = r.total_pages; const rows = r.data||[];
           state.sarana = rows;
@@ -470,6 +550,135 @@ $user = getUserData();
       })();
       $('#btnAddSarana').addEventListener('click', ()=> openEditSarana(0));
 
+      // ============ Wilayah Filter (dropdown popup) ============
+      (function(){
+        const btn = document.getElementById('btnWilFilter');
+        const menu = document.getElementById('menuWilFilter');
+        const badge = document.getElementById('wilFilterBadge');
+        const selKab = document.getElementById('wf_kab');
+        const selKec = document.getElementById('wf_kec');
+        const selKel = document.getElementById('wf_kel');
+        const sKab = document.getElementById('wf_kab_search');
+        const sKec = document.getElementById('wf_kec_search');
+        const sKel = document.getElementById('wf_kel_search');
+        let cacheKab = [], cacheKec = [], cacheKel = [];
+        const btnApply = document.getElementById('wf_apply');
+        const btnClear = document.getElementById('wf_clear');
+        if (!btn || !menu) return;
+
+        function updateBadge(){
+          const parts = [state.kab, state.kec, state.kel].filter(Boolean);
+          if (parts.length){ badge.style.display='inline-block'; badge.textContent = parts.join(' • '); }
+          else { badge.style.display='none'; }
+        }
+
+        async function populateKab(selected){
+          cacheKab = await fetchAreas('kabupaten');
+          renderKab(sKab?.value||'', selected);
+        }
+        async function populateKec(kab, selected){
+          if (selKec) selKec.innerHTML = '<option value="">Semua Kecamatan</option>';
+          cacheKec = [];
+          if (!kab) return;
+          cacheKec = await fetchAreas('kecamatan', kab);
+          renderKec(sKec?.value||'', selected);
+        }
+        async function populateKel(kab, kec, selected){
+          if (selKel) selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
+          cacheKel = [];
+          if (!kab || !kec) return;
+          cacheKel = await fetchAreas('kelurahan', `${kab}|${kec}`);
+          renderKel(sKel?.value||'', selected);
+        }
+
+        function renderKab(term, selected){
+          if (!selKab) return;
+          const t = (term||'').toLowerCase().trim();
+          selKab.innerHTML = '<option value="">Semua Kabupaten</option>' + cacheKab
+            .filter(k=>!t || (k.name||'').toLowerCase().includes(t))
+            .map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('');
+          if (selected) selKab.value = selected;
+        }
+        function renderKec(term, selected){
+          if (!selKec) return;
+          const t = (term||'').toLowerCase().trim();
+          selKec.innerHTML = '<option value="">Semua Kecamatan</option>' + cacheKec
+            .filter(k=>!t || (k.name||'').toLowerCase().includes(t))
+            .map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('');
+          if (selected) selKec.value = selected;
+        }
+        function renderKel(term, selected){
+          if (!selKel) return;
+          const t = (term||'').toLowerCase().trim();
+          selKel.innerHTML = '<option value="">Semua Kelurahan</option>' + cacheKel
+            .filter(k=>!t || (k.name||'').toLowerCase().includes(t))
+            .map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('');
+          if (selected) selKel.value = selected;
+        }
+
+        btn.addEventListener('click', async (e)=>{
+          e.stopPropagation();
+          // Initialize selects with current state
+          await populateKab(state.kab);
+          await populateKec(state.kab, state.kec);
+          await populateKel(state.kab, state.kec, state.kel);
+          // Position floating menu like jenis filter
+          const rect = btn.getBoundingClientRect();
+          menu.classList.add('float');
+          menu.style.width = '320px';
+          menu.style.maxHeight = '60vh';
+          menu.style.top = (rect.bottom + 8) + 'px';
+          const right = Math.max(8, window.innerWidth - rect.right);
+          menu.style.right = right + 'px';
+          menu.style.left = '';
+          menu.classList.toggle('show');
+        });
+        document.addEventListener('click', (e)=>{
+          if (!menu.contains(e.target) && e.target !== btn){
+            menu.classList.remove('show');
+            menu.classList.remove('float');
+            menu.style.top = menu.style.right = menu.style.left = menu.style.width = menu.style.maxHeight = '';
+          }
+        });
+
+        // Cascade inside popup
+        selKab && selKab.addEventListener('change', async ()=>{
+          const kab = selKab.value || '';
+          sKec && (sKec.value=''); sKel && (sKel.value='');
+          await populateKec(kab, '');
+          await populateKel('', '', '');
+        });
+        selKec && selKec.addEventListener('change', async ()=>{
+          const kab = selKab.value || '';
+          const kec = selKec.value || '';
+          sKel && (sKel.value='');
+          await populateKel(kab, kec, '');
+        });
+        // Search handlers
+        sKab && sKab.addEventListener('input', ()=> renderKab(sKab.value||'', selKab?.value||''));
+        sKec && sKec.addEventListener('input', ()=> renderKec(sKec.value||'', selKec?.value||''));
+        sKel && sKel.addEventListener('input', ()=> renderKel(sKel.value||'', selKel?.value||''));
+
+        btnClear && btnClear.addEventListener('click', async ()=>{
+          if (selKab) selKab.value='';
+          if (sKab) sKab.value=''; if (sKec) sKec.value=''; if (sKel) sKel.value='';
+          await populateKec('', '');
+          await populateKel('', '', '');
+        });
+        btnApply && btnApply.addEventListener('click', async ()=>{
+          try{
+            state.kab = selKab ? (selKab.value || '') : '';
+            state.kec = selKec ? (selKec.value || '') : '';
+            state.kel = selKel ? (selKel.value || '') : '';
+            state.page = 1;
+            await loadSarana();
+          }catch(err){ console.error('Apply wilayah filter error:', err); }
+          finally{ menu.classList.remove('show'); updateBadge(); }
+        });
+        // Initialize badge on load
+        updateBadge();
+      })();
+
       // ============ Jenis Filter (dropdown + autosuggest) ============
       (function(){
         const btn = document.getElementById('btnJenisFilter');
@@ -559,30 +768,210 @@ $user = getUserData();
         updateBadge();
       })();
 
-      // Export dropdown
+      // Export popup (jenis + wilayah)
       (function(){
         const btn = document.getElementById('btnExport');
         const menu = document.getElementById('menuExport');
-        btn.addEventListener('click', (e)=>{
+        if (!btn || !menu) return;
+
+        // Build menu content on first open
+        let built = false;
+        // Local export selections (independent from table filters)
+        let exJenisSel = [];
+        let exCacheKab = [], exCacheKec = [], exCacheKel = [];
+
+        function buildMenu(){
+          if (built) return;
+          menu.innerHTML = `
+            <div class="fw-body">
+              <div class="field fw-full"><label>Jenis Sarana</label>
+                <div class="fw-search"><input id="ex_jf_search" placeholder="Cari jenis sarana..."></div>
+                <div id="ex_jf_list" class="jenis-list"></div>
+              </div>
+              <div class="fw-grid" style="margin-top:8px">
+                <div class="field"><label>Kabupaten</label>
+                  <div class="fw-search"><input id="ex_kab_search" placeholder="Cari kabupaten..."></div>
+                  <select id="ex_kab" size="8"><option value="">Semua Kabupaten</option></select>
+                </div>
+                <div class="field"><label>Kecamatan</label>
+                  <div class="fw-search"><input id="ex_kec_search" placeholder="Cari kecamatan..."></div>
+                  <select id="ex_kec" size="8"><option value="">Semua Kecamatan</option></select>
+                </div>
+                <div class="field fw-full"><label>Kelurahan</label>
+                  <div class="fw-search"><input id="ex_kel_search" placeholder="Cari kelurahan..."></div>
+                  <select id="ex_kel" size="8"><option value="">Semua Kelurahan</option></select>
+                </div>
+              </div>
+            </div>
+            <div class="fw-actions">
+              <button id="ex_clear" class="btn" type="button">Bersihkan</button>
+              <button id="ex_do" class="btn primary" type="button">Export XLSX</button>
+            </div>`;
+          built = true;
+
+          wireUp();
+        }
+
+        function renderJenis(term){
+          const list = document.getElementById('ex_jf_list');
+          if (!list) return;
+          const t = (term||'').toLowerCase().trim();
+          const data = Array.isArray(state.jenisMaster) ? state.jenisMaster : [];
+          list.innerHTML = data
+            .filter(j => !t || (j.nama_jenis||'').toLowerCase().includes(t))
+            .map(j => {
+              const checked = exJenisSel.includes(parseInt(j.id,10)) ? 'checked' : '';
+              return `<label class="jenis-item"><span><input type="checkbox" class="ex_jf_chk" value="${j.id}" ${checked}> ${escapeHtml(j.nama_jenis||'')}</span><span class="cnt">${j.count??0}</span></label>`;
+            }).join('') || '<div style="padding:8px;color:#6b7280">Tidak ada hasil</div>';
+        }
+
+        async function populateKab(selected){
+          exCacheKab = await fetchAreas('kabupaten');
+          renderKab((document.getElementById('ex_kab_search')?.value)||'', selected);
+        }
+        async function populateKec(kab, selected){
+          const sel = document.getElementById('ex_kec');
+          if (sel) sel.innerHTML = '<option value="">Semua Kecamatan</option>';
+          exCacheKec = [];
+          if (!kab) return;
+          exCacheKec = await fetchAreas('kecamatan', kab);
+          renderKec((document.getElementById('ex_kec_search')?.value)||'', selected);
+        }
+        async function populateKel(kab, kec, selected){
+          const sel = document.getElementById('ex_kel');
+          if (sel) sel.innerHTML = '<option value="">Semua Kelurahan</option>';
+          exCacheKel = [];
+          if (!kab || !kec) return;
+          exCacheKel = await fetchAreas('kelurahan', `${kab}|${kec}`);
+          renderKel((document.getElementById('ex_kel_search')?.value)||'', selected);
+        }
+
+        function renderKab(term, selected){
+          const sel = document.getElementById('ex_kab'); if (!sel) return;
+          const t = (term||'').toLowerCase().trim();
+          sel.innerHTML = '<option value="">Semua Kabupaten</option>' + exCacheKab
+            .filter(k=>!t || (k.name||'').toLowerCase().includes(t))
+            .map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('');
+          if (selected) sel.value = selected;
+        }
+        function renderKec(term, selected){
+          const sel = document.getElementById('ex_kec'); if (!sel) return;
+          const t = (term||'').toLowerCase().trim();
+          sel.innerHTML = '<option value="">Semua Kecamatan</option>' + exCacheKec
+            .filter(k=>!t || (k.name||'').toLowerCase().includes(t))
+            .map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('');
+          if (selected) sel.value = selected;
+        }
+        function renderKel(term, selected){
+          const sel = document.getElementById('ex_kel'); if (!sel) return;
+          const t = (term||'').toLowerCase().trim();
+          sel.innerHTML = '<option value="">Semua Kelurahan</option>' + exCacheKel
+            .filter(k=>!t || (k.name||'').toLowerCase().includes(t))
+            .map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('');
+          if (selected) sel.value = selected;
+        }
+
+        function wireUp(){
+          // Prefill from current filters
+          exJenisSel = Array.isArray(state.filterJenis) ? [...state.filterJenis] : [];
+          const exKab = state.kab || '';
+          const exKec = state.kec || '';
+          const exKel = state.kel || '';
+
+          // Ensure jenis master
+          (async()=>{
+            try{ await ensureJenisMaster(); }catch(_){}
+            renderJenis('');
+            const search = document.getElementById('ex_jf_search');
+            const list = document.getElementById('ex_jf_list');
+            search && search.addEventListener('input', ()=> renderJenis(search.value||''));
+            list && list.addEventListener('change', (e)=>{
+              const el = e.target.closest('.ex_jf_chk'); if (!el) return;
+              const id = parseInt(el.value,10);
+              if (el.checked){ if (!exJenisSel.includes(id)) exJenisSel.push(id); }
+              else { exJenisSel = exJenisSel.filter(v=>v!==id); }
+            });
+          })();
+
+          // Populate wilayah with current state
+          (async()=>{
+            await populateKab(exKab);
+            await populateKec(exKab, exKec);
+            await populateKel(exKab, exKec, exKel);
+            const selKab = document.getElementById('ex_kab');
+            const selKec = document.getElementById('ex_kec');
+            const sKab = document.getElementById('ex_kab_search');
+            const sKec = document.getElementById('ex_kec_search');
+            const sKel = document.getElementById('ex_kel_search');
+            const selKel = document.getElementById('ex_kel');
+            selKab && selKab.addEventListener('change', async ()=>{
+              const kab = selKab.value || '';
+              if (sKec) sKec.value=''; if (sKel) sKel.value='';
+              await populateKec(kab, '');
+              await populateKel('', '', '');
+            });
+            selKec && selKec.addEventListener('change', async ()=>{
+              const kab = document.getElementById('ex_kab').value || '';
+              const kec = document.getElementById('ex_kec').value || '';
+              if (sKel) sKel.value='';
+              await populateKel(kab, kec, '');
+            });
+            sKab && sKab.addEventListener('input', ()=> renderKab(sKab.value||'', selKab?.value||''));
+            sKec && sKec.addEventListener('input', ()=> renderKec(sKec.value||'', selKec?.value||''));
+            sKel && sKel.addEventListener('input', ()=> renderKel(sKel.value||'', selKel?.value||''));
+          })();
+
+          // Actions
+          document.getElementById('ex_clear')?.addEventListener('click', async ()=>{
+            exJenisSel = [];
+            try{ renderJenis(document.getElementById('ex_jf_search')?.value||''); }catch(_){ }
+            const selKab = document.getElementById('ex_kab');
+            const selKec = document.getElementById('ex_kec');
+            const selKel = document.getElementById('ex_kel');
+            const sKab = document.getElementById('ex_kab_search');
+            const sKec = document.getElementById('ex_kec_search');
+            const sKel = document.getElementById('ex_kel_search');
+            if (selKab) selKab.value=''; if (sKab) sKab.value=''; if (sKec) sKec.value=''; if (sKel) sKel.value='';
+            await populateKec('', ''); await populateKel('', '', '');
+          });
+          document.getElementById('ex_do')?.addEventListener('click', ()=>{
+            try{
+              const u = new URL(API + '/sarana.php', location.origin);
+              u.searchParams.set('export', 'xlsx');
+              // jenis param (ids)
+              if (exJenisSel.length) u.searchParams.set('jenis', exJenisSel.join(','));
+              const kab = document.getElementById('ex_kab')?.value || '';
+              const kec = document.getElementById('ex_kec')?.value || '';
+              const kel = document.getElementById('ex_kel')?.value || '';
+              if (kab) u.searchParams.set('kabupaten', kab);
+              if (kec) u.searchParams.set('kecamatan', kec);
+              if (kel) u.searchParams.set('kelurahan', kel);
+              window.open(u.toString(), '_blank');
+            }catch(err){ console.error('Export XLSX error:', err); }
+            menu.classList.remove('show');
+          });
+        }
+
+        btn.addEventListener('click', async (e)=>{
           e.stopPropagation();
+          buildMenu();
+          // Position like other float menus
+          const rect = btn.getBoundingClientRect();
+          menu.classList.add('float');
+          menu.style.width = 'min(520px, 96vw)';
+          menu.style.maxHeight = '60vh';
+          menu.style.top = (rect.bottom + 8) + 'px';
+          const right = Math.max(8, window.innerWidth - rect.right);
+          menu.style.right = right + 'px';
+          menu.style.left = '';
           menu.classList.toggle('show');
         });
-        document.addEventListener('click', ()=> menu.classList.remove('show'));
-        menu.addEventListener('click', (e)=>{
-          const el = e.target.closest('[data-export]');
-          if (!el) return;
-          const typ = el.getAttribute('data-export');
-          try {
-            const u = new URL(API + '/sarana.php', location.origin);
-            u.searchParams.set('export', typ);
-            const qv = ($('#q')?.value || '').trim();
-            if (qv) u.searchParams.set('q', qv);
-            if (Array.isArray(state.filterJenis) && state.filterJenis.length) {
-              u.searchParams.set('jenis', state.filterJenis.join(','));
-            }
-            window.open(u.toString(), '_blank');
-          } catch (err) { console.error('Export error:', err); }
-          menu.classList.remove('show');
+        document.addEventListener('click', (e)=>{
+          if (!menu.contains(e.target) && e.target !== btn){
+            menu.classList.remove('show');
+            menu.classList.remove('float');
+            menu.style.top = menu.style.right = menu.style.left = menu.style.width = menu.style.maxHeight = '';
+          }
         });
       })();
 
