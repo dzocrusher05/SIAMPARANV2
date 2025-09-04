@@ -190,7 +190,7 @@ if ($method === 'GET') {
                                 ELSE 6
                             END, " . $orderBy;
                 $searchParams = ["$q%", "%$q%", "%$q%", "%$q%", "%$q%"];
-                $finalParams = array_merge($searchParams, $params);
+                $finalParams = array_merge($params, $searchParams);
             }
 
             $sql = $select . $base . " ORDER BY " . $orderBy;
@@ -238,7 +238,7 @@ if ($method === 'GET') {
             if ($q) {
                 $orderBy = "CASE\n                                WHEN s.nama_sarana LIKE ? THEN 1\n                                WHEN s.nama_sarana LIKE ? THEN 2\n                                WHEN s.kelurahan LIKE ? THEN 3\n                                WHEN s.kecamatan LIKE ? THEN 4\n                                WHEN s.kabupaten LIKE ? THEN 5\n                                ELSE 6\n                            END, " . $orderBy;
                 $searchParams = ["$q%", "%$q%", "%$q%", "%$q%", "%$q%"];
-                $finalParams = array_merge($searchParams, $params);
+                $finalParams = array_merge($params, $searchParams);
             }
 
             $sql = $select . $base . " ORDER BY " . $orderBy;
@@ -388,9 +388,10 @@ if ($method === 'GET') {
                             WHEN s.kabupaten LIKE ? THEN 5    -- Cocok dengan kabupaten
                             ELSE 6
                         END, " . $orderBy;
-            // Tambahkan parameter untuk perhitungan relevansi di awal array
+            // Tambahkan parameter untuk perhitungan relevansi (ORDER BY CASE)
             $searchParams = ["$q%", "%$q%", "%$q%", "%$q%", "%$q%"];
-            $finalParams = array_merge($searchParams, $params);
+            // Urutan placeholder: WHERE (params) lebih dahulu, kemudian ORDER BY CASE (searchParams)
+            $finalParams = array_merge($params, $searchParams);
         }
 
         // IMPORTANT: jangan pakai placeholder utk LIMIT/OFFSET
@@ -450,7 +451,7 @@ if ($method === 'GET') {
                     END, " . $orderBy;
         // Tambahkan parameter untuk perhitungan relevansi
         $searchParams = ["$q%", "%$q%", "%$q%", "%$q%", "%$q%"];
-        $finalParams = array_merge($searchParams, $params);
+        $finalParams = array_merge($params, $searchParams);
     }
     
     $sql = $select . $mapBase . "\n         ORDER BY " . $orderBy . "\n         LIMIT {$limit}";

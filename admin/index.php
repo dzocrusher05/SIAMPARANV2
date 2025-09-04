@@ -417,19 +417,26 @@ $user = getUserData();
 
       async function loadSarana(){
         try {
-          const u = new URL(API + '/sarana.php', location.origin);
-          u.searchParams.set('page', state.page);
-          u.searchParams.set('per_page', state.perPage);
+          // Build relative URL using API base to avoid base-path issues
+          const u = new URL(API + '/sarana.php', window.location.href);
+          u.searchParams.set('page', String(state.page));
+          u.searchParams.set('per_page', String(state.perPage));
           if (state.q) u.searchParams.set('q', state.q);
           if (state.saranaIdSearch) u.searchParams.set('id', String(state.saranaIdSearch));
           if (state.filterJenis?.length) u.searchParams.set('jenis', state.filterJenis.join(','));
           if (state.kab) u.searchParams.set('kabupaten', state.kab);
           if (state.kec) u.searchParams.set('kecamatan', state.kec);
           if (state.kel) u.searchParams.set('kelurahan', state.kel);
-          const r = await jfetch(u.pathname + u.search);
-          state.total = r.total; state.totalPages = r.total_pages; const rows = r.data||[];
+          const r = await jfetch(u.toString());
+          state.total = r.total; state.totalPages = r.total_pages; const rows = Array.isArray(r.data) ? r.data : [];
           state.sarana = rows;
-          $('#saranaRows').innerHTML = rows.map(s=>{
+          // If no rows but there are totals, try resetting to page 1 (e.g., stale page)
+          if (!rows.length && (state.total||0) > 0 && state.page > 1){
+            state.page = 1;
+            return await loadSarana();
+          }
+          // Render rows or empty state
+          $('#saranaRows').innerHTML = rows.length ? rows.map(s=>{
             const jenis = Array.isArray(s.jenis)? s.jenis.join(', ') : '';
             return `<tr><td class="font-medium">${escapeHtml(s.nama_sarana)}</td>
               <td>${s.latitude}, ${s.longitude}</td>
@@ -439,7 +446,7 @@ $user = getUserData();
                 <button class="btn" data-edit="${s.id}">Edit</button>
                 <button class="btn danger" data-del="${s.id}">Hapus</button>
               </td></tr>`;
-          }).join('');
+          }).join('') : `<tr><td colspan="5" style="text-align:center; color:#6b7280; padding:12px">Tidak ada data sesuai filter.</td></tr>`;
           $('#pagerInfo').textContent = `Total ${state.total} data`;
           const nav = [];
           const maxButtons = 10; // Maksimal tombol paginasi yang ditampilkan
