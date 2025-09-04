@@ -26,9 +26,27 @@ $user = getUserData();
       .grid{display:grid;gap:10px}
       /* Sidebar collapse support + smooth transition */
       #layoutGrid{transition:grid-template-columns .25s ease}
-      #layoutGrid aside{transition:width .25s ease, opacity .2s ease}
-      #layoutGrid.collapsed{grid-template-columns:0 1fr !important}
-      #layoutGrid.collapsed aside{width:0;opacity:0;pointer-events:none}
+      #layoutGrid aside{transition:width .25s ease}
+      /* collapsed = mini sidebar (icons only) */
+      #layoutGrid.collapsed{grid-template-columns:64px 1fr !important}
+      #layoutGrid.collapsed aside{width:64px}
+      /* Nav items (apply to transformed items) */
+      aside .nav{display:flex;flex-direction:column;gap:8px}
+      aside .nav-item{display:flex;align-items:center;gap:10px;border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;text-decoration:none;color:inherit}
+      aside .nav-item:hover{background:#f8fafc}
+      aside .nav-ic{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:18px}
+      aside .nav-tx{white-space:nowrap}
+      /* Mini mode: hide text, center icons, show tooltip */
+      #layoutGrid.collapsed aside .nav-item{justify-content:center;padding:10px}
+      #layoutGrid.collapsed aside .nav-tx{display:none}
+      #layoutGrid.collapsed aside .nav-item{position:relative}
+      #layoutGrid.collapsed aside .nav-item::after{
+        content: attr(data-title);
+        position:absolute; left:calc(100% + 10px); top:50%; transform:translateY(-50%);
+        background:#111827; color:#fff; border-radius:8px; padding:6px 8px; font-size:12px; white-space:nowrap;
+        box-shadow:0 8px 24px rgba(0,0,0,.18); opacity:0; pointer-events:none; transition:opacity .15s ease; z-index:50;
+      }
+      #layoutGrid.collapsed aside .nav-item:hover::after{opacity:1}
       .grid.cols-2{grid-template-columns:1fr 1fr}
       .field label{display:block;font-size:12px;color:#6b7280;margin-bottom:4px}
       .field input{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px}
@@ -272,6 +290,61 @@ $user = getUserData();
       const $ = (s,r=document)=>r.querySelector(s);
       const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
       const state = { page:1, perPage:20, q:"", total:0, totalPages:1, filterJenis:[], sarana:[], jenisMaster:[], kab:'', kec:'', kel:'' };
+
+      // Build sidebar nav with icons + hover tooltips (mini mode)
+      (function buildSidebarNav(){
+        try{
+          const aside = document.querySelector('#layoutGrid aside');
+          if (!aside) return;
+          const old = aside.querySelector('.grid');
+          // Collect hrefs from existing links if available
+          const sel = (q)=> aside.querySelector(q);
+          const href = (q, def)=> sel(q)?.getAttribute('href') || def;
+          const links = {
+            peta: href('a[href*="../public/index.php"]', '../public/index.php'),
+            impor: href('a[href*="import.php"]', './import.php'),
+            wilayah: href('a[href*="wilayah.php"]', './wilayah.php'),
+            massal: href('a[href*="jenis_sarana_massal.php"]', './jenis_sarana_massal.php'),
+            pwd: href('a[href*="change_password.php"]', './change_password.php'),
+            logout: href('a[href*="logout.php"]', './logout.php'),
+          };
+          const nav = document.createElement('nav');
+          nav.className = 'nav';
+          nav.innerHTML = `
+            <button class="nav-item" id="navDataSarana" type="button" data-title="Data Sarana">
+              <span class="nav-ic">📄</span><span class="nav-tx">Data Sarana</span>
+            </button>
+            <button class="nav-item" id="navJenis" type="button" data-title="Jenis Sarana">
+              <span class="nav-ic">🏷️</span><span class="nav-tx">Jenis Sarana</span>
+            </button>
+            <a class="nav-item" href="${links.peta}" target="_blank" data-title="Halaman Peta">
+              <span class="nav-ic">🗺️</span><span class="nav-tx">Halaman Peta</span>
+            </a>
+            <a class="nav-item" href="${links.impor}" data-title="Import Sarana">
+              <span class="nav-ic">⬆️</span><span class="nav-tx">Import Sarana</span>
+            </a>
+            <a class="nav-item" href="${links.wilayah}" data-title="Manajemen Wilayah">
+              <span class="nav-ic">🗂️</span><span class="nav-tx">Manajemen Wilayah</span>
+            </a>
+            <a class="nav-item" href="${links.massal}" data-title="Ubah Jenis Sarana Massal">
+              <span class="nav-ic">🔄</span><span class="nav-tx">Ubah Jenis Sarana Massal</span>
+            </a>
+            <a class="nav-item" href="${links.pwd}" data-title="Ganti Password">
+              <span class="nav-ic">🔒</span><span class="nav-tx">Ganti Password</span>
+            </a>
+            <a class="nav-item" href="${links.logout}" data-title="Logout">
+              <span class="nav-ic">🚪</span><span class="nav-tx">Logout</span>
+            </a>`;
+          // Insert before old menu; hide the old
+          if (old && old.parentNode){ old.style.display='none'; old.parentNode.insertBefore(nav, old); }
+          else { aside.appendChild(nav); }
+          // Wire tab buttons to existing handlers
+          const bS = document.getElementById('tabBtnSarana');
+          const bJ = document.getElementById('tabBtnJenis');
+          document.getElementById('navDataSarana')?.addEventListener('click', ()=> bS && bS.click());
+          document.getElementById('navJenis')?.addEventListener('click', ()=> bJ && bJ.click());
+        }catch(err){ console.warn('Sidebar nav build failed:', err); }
+      })();
 
       // Sidebar toggle (persisted)
       (function(){

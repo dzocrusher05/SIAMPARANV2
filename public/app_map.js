@@ -17,7 +17,9 @@
     ovFilter: null,
     q: null, qSuggest: null,
     selKab: null, selKec: null, selKel: null, selJenis: null,
-    jenisSearch: null
+    jenisSearch: null,
+    kecInput: null, kelInput: null,
+    kecSuggest: null, kelSuggest: null
   };
 
   // Filter
@@ -184,6 +186,10 @@
     UI.selKel = document.getElementById('f_kel');
     UI.selJenis = document.getElementById('f_jenis');
     UI.jenisSearch = document.getElementById('f_jenis_search');
+    UI.kecInput = document.getElementById('f_kec_input');
+    UI.kelInput = document.getElementById('f_kel_input');
+    UI.kecSuggest = document.getElementById('kecSuggest');
+    UI.kelSuggest = document.getElementById('kelSuggest');
     const btnApply = document.getElementById('btnApply');
     const btnReset = document.getElementById('btnReset');
 
@@ -198,8 +204,8 @@
     if (btnApply){ btnApply.addEventListener('click', ()=>{
       filter.q = (UI.q?.value || '').trim();
       filter.kab = UI.selKab?.value || '';
-      filter.kec = UI.selKec?.value || '';
-      filter.kel = UI.selKel?.value || '';
+      filter.kec = (UI.kecInput?.value || UI.selKec?.value || '').trim();
+      filter.kel = (UI.kelInput?.value || UI.selKel?.value || '').trim();
       // Kumpulkan pilihan jenis dari checkbox
       if (UI.selJenis) {
         const checks = UI.selJenis.querySelectorAll('input[type="checkbox"]:checked');
@@ -214,6 +220,10 @@
       if (UI.q) UI.q.value=''; if (UI.selKab) UI.selKab.value='';
       if (UI.selKec) UI.selKec.innerHTML = '<option value="">Semua Kecamatan</option>';
       if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
+      if (UI.kecInput) UI.kecInput.value='';
+      if (UI.kelInput) UI.kelInput.value='';
+      if (UI.kecSuggest){ UI.kecSuggest.style.display='none'; UI.kecSuggest.innerHTML=''; }
+      if (UI.kelSuggest){ UI.kelSuggest.style.display='none'; UI.kelSuggest.innerHTML=''; }
       if (UI.jenisSearch) UI.jenisSearch.value='';
       if (UI.selJenis) {
         UI.selJenis.querySelectorAll('input[type="checkbox"]').forEach(cb=>{ cb.checked = false; cb.parentElement.style.display=''; });
@@ -224,30 +234,131 @@
     }); }
 
     // Dinamis: Muat kecamatan saat kabupaten berubah, dan kelurahan saat kecamatan berubah
+    let kecList = [];
+    let kelList = [];
+    function buildSuggestItems(items){
+      return (items||[]).map(nm=>`<div class=\"suggest-item\" data-name=\"${escapeHtml(nm)}\">${escapeHtml(nm)}</div>`).join('');
+    }
+    function showSuggest(container, items){
+      if (!container) return;
+      const html = buildSuggestItems(items);
+      container.innerHTML = html;
+      container.style.display = html ? 'block' : 'none';
+    }
+    function hideSuggestBox(container){ if (container){ container.style.display='none'; container.innerHTML=''; } }
+    function renderSelectOptions(selectEl, items, placeholder){
+      if (!selectEl) return;
+      const opts = [`<option value="">${placeholder}</option>`]
+        .concat((items||[]).map(nm=>`<option value="${escapeHtml(nm)}">${escapeHtml(nm)}</option>`));
+      selectEl.innerHTML = opts.join('');
+    }
+
     if (UI.selKab){
       UI.selKab.addEventListener('change', async ()=>{
         const kab = UI.selKab.value || '';
         // Reset dependent selects
         if (UI.selKec) UI.selKec.innerHTML = '<option value="">Semua Kecamatan</option>';
         if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
+        // Reset input + lists
+        if (UI.kecInput) UI.kecInput.value = '';
+        if (UI.kelInput) UI.kelInput.value = '';
+        kecList = []; kelList = [];
+        hideSuggestBox(UI.kecSuggest); hideSuggestBox(UI.kelSuggest);
         if (!kab) return; // Jika kabupaten kosong, selesai
         try{
           const kecs = await fetchAreas('kecamatan', kab);
-          if (UI.selKec) UI.selKec.innerHTML = '<option value="">Semua Kecamatan</option>' + (Array.isArray(kecs)? kecs.map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('') : '');
+          kecList = Array.isArray(kecs) ? kecs.map(k=>k.name).filter(Boolean) : [];
+          renderSelectOptions(UI.selKec, kecList, 'Semua Kecamatan');
+          // Autosuggest: tampilkan langsung semua kecamatan
+          showSuggest(UI.kecSuggest, kecList);
         }catch(_){ /* biarkan default */ }
       });
     }
+    async function loadKelurahanFor(kab, kec){
+      if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
+      kelList = [];
+      if (!kab || !kec) return;
+      try{
+        const kels = await fetchAreas('kelurahan', `${kab}|${kec}`);
+        kelList = Array.isArray(kels) ? kels.map(k=>k.name).filter(Boolean) : [];
+        renderSelectOptions(UI.selKel, kelList, 'Semua Kelurahan');
+        // Autosuggest: tampilkan langsung semua kelurahan
+        showSuggest(UI.kelSuggest, kelList);
+      }catch(_){ /* biarkan default */ }
+    }
+
+    // Listener select kecamatan untuk memuat kelurahan
     if (UI.selKec){
       UI.selKec.addEventListener('change', async ()=>{
         const kab = UI.selKab?.value || '';
         const kec = UI.selKec.value || '';
-        if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>';
-        if (!kab || !kec) return; // Perlu kedua nilai
-        try{
-          const kels = await fetchAreas('kelurahan', `${kab}|${kec}`);
-          if (UI.selKel) UI.selKel.innerHTML = '<option value="">Semua Kelurahan</option>' + (Array.isArray(kels)? kels.map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join('') : '');
-        }catch(_){ /* biarkan default */ }
+        if (UI.kecInput) UI.kecInput.value = kec;
+        if (UI.kelInput) UI.kelInput.value = '';
+        hideSuggestBox(UI.kelSuggest);
+        await loadKelurahanFor(kab, kec);
       });
+    }
+
+    // Input ketik Kecamatan → filter daftar dan pilih dengan klik/Enter
+    if (UI.kecInput){
+      UI.kecInput.addEventListener('focus', ()=>{ if (kecList.length) showSuggest(UI.kecSuggest, kecList); });
+      UI.kecInput.addEventListener('input', ()=>{
+        const q = (UI.kecInput.value||'').toLowerCase().trim();
+        const items = q ? kecList.filter(n=>n.toLowerCase().includes(q)) : kecList;
+        showSuggest(UI.kecSuggest, items);
+      });
+      UI.kecInput.addEventListener('keydown', async (e)=>{
+        if (e.key==='Escape'){ hideSuggestBox(UI.kecSuggest); return; }
+        if (e.key==='Enter'){
+          const first = UI.kecSuggest && UI.kecSuggest.querySelector('.suggest-item');
+          if (first){
+            const nm = first.getAttribute('data-name')||'';
+            UI.kecInput.value = nm; if (UI.selKec) UI.selKec.value = nm;
+            hideSuggestBox(UI.kecSuggest);
+            await loadKelurahanFor(UI.selKab?.value||'', nm);
+            e.preventDefault();
+          }
+        }
+      });
+      if (UI.kecSuggest){
+        UI.kecSuggest.addEventListener('click', async (e)=>{
+          const el = e.target.closest('.suggest-item'); if (!el) return;
+          const nm = el.getAttribute('data-name')||'';
+          UI.kecInput.value = nm; if (UI.selKec) UI.selKec.value = nm;
+          hideSuggestBox(UI.kecSuggest);
+          await loadKelurahanFor(UI.selKab?.value||'', nm);
+        });
+      }
+    }
+
+    // Input ketik Kelurahan → filter daftar dan pilih dengan klik/Enter
+    if (UI.kelInput){
+      UI.kelInput.addEventListener('focus', ()=>{ if (kelList.length) showSuggest(UI.kelSuggest, kelList); });
+      UI.kelInput.addEventListener('input', ()=>{
+        const q = (UI.kelInput.value||'').toLowerCase().trim();
+        const items = q ? kelList.filter(n=>n.toLowerCase().includes(q)) : kelList;
+        showSuggest(UI.kelSuggest, items);
+      });
+      UI.kelInput.addEventListener('keydown', (e)=>{
+        if (e.key==='Escape'){ hideSuggestBox(UI.kelSuggest); return; }
+        if (e.key==='Enter'){
+          const first = UI.kelSuggest && UI.kelSuggest.querySelector('.suggest-item');
+          if (first){
+            const nm = first.getAttribute('data-name')||'';
+            UI.kelInput.value = nm; if (UI.selKel) UI.selKel.value = nm;
+            hideSuggestBox(UI.kelSuggest);
+            e.preventDefault();
+          }
+        }
+      });
+      if (UI.kelSuggest){
+        UI.kelSuggest.addEventListener('click', (e)=>{
+          const el = e.target.closest('.suggest-item'); if (!el) return;
+          const nm = el.getAttribute('data-name')||'';
+          UI.kelInput.value = nm; if (UI.selKel) UI.selKel.value = nm;
+          hideSuggestBox(UI.kelSuggest);
+        });
+      }
     }
 
     // Lokasi & ikuti
@@ -275,7 +386,15 @@
       UI.q.addEventListener('keydown', (e)=>{ if (e.key==='Escape') { hideSuggest(); return; } if (e.key==='Enter'){ const first = UI.qSuggest && UI.qSuggest.querySelector('.suggest-item'); if (first){ const nm = first.getAttribute('data-name')||''; UI.q.value=nm; filter.q=nm; window.justAppliedFilter=true; if (typeof window.loadMapData==='function') window.loadMapData(); hideSuggest(); e.preventDefault(); } } });
     }
     if (UI.qSuggest){ UI.qSuggest.addEventListener('click', (e)=>{ const el=e.target.closest('.suggest-item'); if (!el) return; const nm=el.getAttribute('data-name')||''; UI.q.value=nm; filter.q=nm; window.justAppliedFilter=true; if (typeof window.loadMapData==='function') window.loadMapData(); hideSuggest(); }); }
-    document.addEventListener('click', (e)=>{ const wrap = document.querySelector('.suggest-wrap'); if (wrap && !wrap.contains(e.target)) hideSuggest(); });
+    // Tutup autosuggest jika klik di luar
+    document.addEventListener('click', (e)=>{
+      const qWrap = document.querySelector('.suggest-wrap');
+      if (qWrap && !qWrap.contains(e.target)) hideSuggest();
+      const kecWrap = UI.kecInput ? UI.kecInput.closest('.suggest-wrap') : null;
+      const kelWrap = UI.kelInput ? UI.kelInput.closest('.suggest-wrap') : null;
+      if (kecWrap && !kecWrap.contains(e.target)) hideSuggestBox(UI.kecSuggest);
+      if (kelWrap && !kelWrap.contains(e.target)) hideSuggestBox(UI.kelSuggest);
+    });
 
     // Load master filter lalu init map
     Promise.all([ fetchAreas('kabupaten'), fetchJenis() ]).then(([kabs, jens])=>{

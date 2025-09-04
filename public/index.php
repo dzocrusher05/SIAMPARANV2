@@ -571,8 +571,22 @@ if (!isset($_GET['noauth']) && !isLoggedIn()) {
             <div id="qSuggest" class="suggest-list"></div>
           </div>
           <div class="field"><label>Kabupaten</label><select id="f_kab"></select></div>
-          <div class="field"><label>Kecamatan</label><select id="f_kec"></select></div>
-          <div class="field" style="grid-column:1/3"><label>Kelurahan</label><select id="f_kel"></select></div>
+          <div class="field">
+            <label>Kecamatan</label>
+            <div class="suggest-wrap">
+              <input id="f_kec_input" placeholder="Ketik nama kecamatan..." autocomplete="off" />
+              <div id="kecSuggest" class="suggest-list"></div>
+            </div>
+            <select id="f_kec" style="display:none"></select>
+          </div>
+          <div class="field" style="grid-column:1/3">
+            <label>Kelurahan</label>
+            <div class="suggest-wrap">
+              <input id="f_kel_input" placeholder="Ketik nama kelurahan..." autocomplete="off" />
+              <div id="kelSuggest" class="suggest-list"></div>
+            </div>
+            <select id="f_kel" style="display:none"></select>
+          </div>
           <div class="field" style="grid-column:1/3">
             <label>Jenis Sarana</label>
             <div class="jenis-search"><input id="f_jenis_search" placeholder="Cari jenis sarana..." autocomplete="off" /></div>
